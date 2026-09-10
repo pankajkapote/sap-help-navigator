@@ -1420,15 +1420,15 @@ quick_questions = {
 }
 for label, q in quick_questions.items():
 if st.button(label, use_container_width=True, key=f"qbtn_{label[:5]}"):
-st.session_state.quick_q = q
-st.rerun()
+    st.session_state.quick_q = q
+    st.rerun()
 
 # Recent Search History
 if st.session_state.search_history:
-st.markdown("---")
-st.markdown("**🕘 Recent Searches**")
+    st.markdown("---")
+    st.markdown("**🕘 Recent Searches**")
 for h in reversed(st.session_state.search_history[-5:]):
-st.caption(f"• {h[:38]}{'…' if len(h) > 38 else ''}")
+    st.caption(f"• {h[:38]}{'…' if len(h) > 38 else ''}")
 
 # Footer
 st.markdown("---")
