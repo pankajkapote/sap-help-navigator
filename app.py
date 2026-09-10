@@ -2199,22 +2199,22 @@ def tab_parameters():
                 f'target="_blank" style="font-size:.82rem">📋 {pdata["note"]}</a>'
                 ) if pdata.get("note") else "—"
 
-                row_bg = "#f8fafc" if idx % 2 == 0 else "#ffffff"
-                table_rows += (
-                    f'<tr style="background:{row_bg}">'
-                    f'<td style="padding:7px 12px;border:1px solid #e5e7eb;font-family:monospace;'
-                    f'color:#0057A8;font-size:.84rem">{pname}</td>'
-                    f'<td style="padding:7px 12px;border:1px solid #e5e7eb;font-family:monospace;'
-                    f'font-weight:700;font-size:.84rem">{value}</td>'
-                    f'<td style="padding:7px 12px;border:1px solid #e5e7eb;color:#6b7280;'
-                    f'font-size:.82rem">{unit}</td>'
-                    f'<td style="padding:7px 12px;border:1px solid #e5e7eb;'
-                    f'font-size:.84rem">{pdata.get("desc", "")}</td>'
-                    f'<td style="padding:7px 12px;border:1px solid #e5e7eb">{note_html}</td>'
-                    f'</tr>'
+            row_bg = "#f8fafc" if idx % 2 == 0 else "#ffffff"
+            table_rows += (
+                f'<tr style="background:{row_bg}">'
+                f'<td style="padding:7px 12px;border:1px solid #e5e7eb;font-family:monospace;'
+                f'color:#0057A8;font-size:.84rem">{pname}</td>'
+                f'<td style="padding:7px 12px;border:1px solid #e5e7eb;font-family:monospace;'
+                f'font-weight:700;font-size:.84rem">{value}</td>'
+                f'<td style="padding:7px 12px;border:1px solid #e5e7eb;color:#6b7280;'
+                f'font-size:.82rem">{unit}</td>'
+                f'<td style="padding:7px 12px;border:1px solid #e5e7eb;'
+                f'font-size:.84rem">{pdata.get("desc", "")}</td>'
+                f'<td style="padding:7px 12px;border:1px solid #e5e7eb">{note_html}</td>'
+                f'</tr>'
                 )
-                snippet_lines.append(
-                    f"{pname:<45} = {value:<20}  # {pdata.get('desc', '')}"
+            snippet_lines.append(
+                f"{pname:<45} = {value:<20}  # {pdata.get('desc', '')}"
                 )
 
             st.markdown(
