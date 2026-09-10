@@ -1348,27 +1348,27 @@ SAP Help Navigator Pro
 </body>
 </html>"""
 
-============================================================
-SIDEBAR
-============================================================
+#============================================================
+# SIDEBAR
+#============================================================
 def render_sidebar():
-with st.sidebar:
-st.markdown("### 🔷 SAP Help Navigator")
-st.markdown("---")
+    with st.sidebar:
+        st.markdown("### 🔷 SAP Help Navigator")
+        st.markdown("---")
 
 # API Key Status Section
 st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
 if st.session_state.api_key:
-try:
-from_secrets = bool(st.secrets.get("gemini_api_key", ""))
-except Exception:
-from_secrets = False
+    try:
+        from_secrets = bool(st.secrets.get("gemini_api_key", ""))
+        except Exception:
+            from_secrets = False
 if from_secrets:
-st.success("🤖 **Gemini AI Active**\n\n*Key loaded from Streamlit Secrets*")
+    st.success("🤖 **Gemini AI Active**\n\n*Key loaded from Streamlit Secrets*")
 else:
-st.success("🤖 **Gemini AI Active**\n\n*Key entered manually*")
+    st.success("🤖 **Gemini AI Active**\n\n*Key entered manually*")
 else:
-st.warning("📐 **Rule-based Mode**\n\nAdd Gemini key for AI-powered answers")
+    st.warning("📐 **Rule-based Mode**\n\nAdd Gemini key for AI-powered answers")
 manual_key = st.text_input(
 "Enter Gemini API Key",
 type="password",
