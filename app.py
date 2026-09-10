@@ -2236,12 +2236,12 @@ def tab_parameters():
                 label="⬇️ Download as Profile Snippet (.txt)",
                 data="\n".join(snippet_lines),
                 file_name=(
-                    f"sap_params_{param_prod.replace(' ', '_')}_"
-                    f"{param_cat}_{datetime.datetime.now().strftime('%Y%m%d')}.txt"
+                f"sap_params_{param_prod.replace(' ', '_')}_"
+                f"{param_cat}_{datetime.datetime.now().strftime('%Y%m%d')}.txt"
                 ),
                 mime="text/plain",
                 use_container_width=True,
-            )
+                )
 
         # OS Parameters section
         if param_os != "None":
