@@ -758,7 +758,7 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
 📋 SAP Note 2393060 — sapinst / SWPM troubleshooting
 📋 SAP Note 1639498 — How to download SAP software
 """
-return ans
+        return ans
 
 # — Parameters ————————————————————————————————
 if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
