@@ -1440,16 +1440,16 @@ st.markdown(
 "</div>",
 unsafe_allow_html=True,
 )
-============================================================
-HEADER
-============================================================
+#============================================================
+#HEADER
+#============================================================
 def render_header():
-product = st.session_state.current_product
-mode_txt = "🤖 Gemini AI Active" if st.session_state.api_key else "📐 Rule-based Mode"
-docs_count = len(st.session_state.fetched_docs)
-qa_count = len(st.session_state.conversation)
-st.markdown(
-f"""<div class="main-header">
+    product = st.session_state.current_product
+    mode_txt = "🤖 Gemini AI Active" if st.session_state.api_key else "📐 Rule-based Mode"
+    docs_count = len(st.session_state.fetched_docs)
+    qa_count = len(st.session_state.conversation)
+    st.markdown(
+    f"""<div class="main-header">
 <h1>🔷 SAP Help Navigator Pro</h1>
 <p>
 Intelligent SAP Documentation Assistant &nbsp;·&nbsp;
@@ -1469,8 +1469,8 @@ unsafe_allow_html=True,
 #TAB 1 SEARCH & ASK
 #============================================================
 def tab_search_and_ask(product: str):
-st.markdown("### 🔍 Search SAP Documentation & Ask Questions")
-st.markdown(
+    st.markdown("### 🔍 Search SAP Documentation & Ask Questions")
+    st.markdown(
 '<div class="info-box">💡 Ask any question about your SAP product. '
 'The tool searches live SAP Help Portal documentation and generates '
 'detailed structured answers. Select a product in the sidebar first for best results.</div>',
