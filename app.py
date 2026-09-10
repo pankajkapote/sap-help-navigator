@@ -1204,9 +1204,9 @@ if opts.get("non_unicode"):
         "tool": "UCCHECK / SUM", "note": "73606",
     })
 return items
-============================================================
-HTML REPORT GENERATOR
-============================================================
+#============================================================
+#    HTML REPORT GENERATOR
+#============================================================
 def generate_html_report(product: str, question: str, answer: str,
 sources: list, checklist: list) -> str:
 """Build a self-contained downloadable HTML report."""
@@ -1215,13 +1215,13 @@ now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 # Build checklist table if provided
 checklist_section = ""
 if checklist:
-rows = ""
-for item in checklist:
-pc = {"Critical": "#fee2e2", "High": "#fef3c7", "Medium": "#dbeafe"}.get(item["pri"], "#f1f5f9")
-note_html = (
-f'<a href="https://launchpad.support.sap.com/#/notes/{item["note"]}" target="_blank">'
-f'Note {item["note"]}</a>'
-) if item.get("note") else "—"
+    rows = ""
+    for item in checklist:
+        pc = {"Critical": "#fee2e2", "High": "#fef3c7", "Medium": "#dbeafe"}.get(item["pri"], "#f1f5f9")
+        note_html = (
+        f'<a href="https://launchpad.support.sap.com/#/notes/{item["note"]}" target="_blank">'
+        f'Note {item["note"]}</a>'
+        ) if item.get("note") else "—"
 rows += (
 f'<tr>'
 f'<td style="background:{pc};padding:6px 10px;border:1px solid #e5e7eb;'
