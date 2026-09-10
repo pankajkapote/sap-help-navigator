@@ -1045,8 +1045,8 @@ ans += f"Your question: {question}\n\n"
 if hits:
     ans += "Extracted from SAP Help Portal documentation:\n\n"
     ans += "\n\n".join(hits[:8])
-    else:
-        ans += f"""### 💡 Suggested Next Steps
+else:
+    ans += f"""### 💡 Suggested Next Steps
 SAP Help Portal — Search for {product or question}
 SAP Community — Real-world answers at community.sap.com
 SAP Support Notes — Technical details at launchpad.support.sap.com
