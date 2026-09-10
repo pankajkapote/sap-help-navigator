@@ -1677,14 +1677,14 @@ with col_content:
         )
 with col_links:
     if doc.get("pdf_links"):
-    st.markdown("**📥 PDFs in this doc:**")
-    for pdf in doc["pdf_links"][:5]:
-        fn = pdf.split("/")[-1]
-        st.markdown(
-        f'<a href="{pdf}" target="_blank" style="font-size:.82rem">'
-        f'📕 {fn[:30]}</a>',
-        unsafe_allow_html=True,
-        )
+        st.markdown("**📥 PDFs in this doc:**")
+        for pdf in doc["pdf_links"][:5]:
+            fn = pdf.split("/")[-1]
+            st.markdown(
+            f'<a href="{pdf}" target="_blank" style="font-size:.82rem">'
+            f'📕 {fn[:30]}</a>',
+            unsafe_allow_html=True,
+            )
 
 # Ask a question about this specific document
 st.markdown("---")
