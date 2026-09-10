@@ -753,7 +753,7 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
         if hits:
             ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
         ans += """### 📥 Download Resources
-...
+"""
 📋 SAP Note 1680045 — Installation best practices
 📋 SAP Note 2393060 — sapinst / SWPM troubleshooting
 📋 SAP Note 1639498 — How to download SAP software
@@ -768,7 +768,6 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
             ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
             ans += """
 🔧 Key ABAP Instance Profile Parameters (DEFAULT.PFL)
-...
 """
         return ans
 # Memory Settings
