@@ -1695,24 +1695,24 @@ placeholder="e.g. What installation steps are described here?",
 key="doc_specific_question",
 )
 if st.button("💬 Get Answer", key="doc_ask_btn") and doc_question:
-with st.spinner("Generating answer from document content…"):
-doc_answer = get_ai_answer(
-doc_question,
-doc.get("content", ""),
-st.session_state.api_key,
-product,
-)
-st.markdown(
-f'<div class="answer-box">{doc_answer}</div>',
-unsafe_allow_html=True,
-)
-st.session_state.conversation.append({
-"question": doc_question,
-"answer": doc_answer,
-"sources": [{"title": doc.get("title", ""), "url": selected_url,
-"description": ""}],
-"product": product,
-})
+    with st.spinner("Generating answer from document content…"):
+        doc_answer = get_ai_answer(
+        doc_question,
+        doc.get("content", ""),
+        st.session_state.api_key,
+        product,
+        )
+        st.markdown(
+        f'<div class="answer-box">{doc_answer}</div>',
+        unsafe_allow_html=True,
+        )
+        st.session_state.conversation.append({
+        "question": doc_question,
+        "answer": doc_answer,
+        "sources": [{"title": doc.get("title", ""), "url": selected_url,
+        "description": ""}],
+        "product": product,
+        })
 #============================================================
 #3 UPGRADE PLANNER
 #============================================================
