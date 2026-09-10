@@ -1419,9 +1419,9 @@ quick_questions = {
 "⬇️ Downloads": "Where can I download the software, patches, and documentation PDFs?",
 }
 for label, q in quick_questions.items():
-if st.button(label, use_container_width=True, key=f"qbtn_{label[:5]}"):
-    st.session_state.quick_q = q
-    st.rerun()
+    if st.button(label, use_container_width=True, key=f"qbtn_{label[:5]}"):
+        st.session_state.quick_q = q
+        st.rerun()
 
 # Recent Search History
 if st.session_state.search_history:
