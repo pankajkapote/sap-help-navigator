@@ -1463,9 +1463,9 @@ help.sap.com ↗
 unsafe_allow_html=True,
 )
 
-============================================================
-TAB 1 — SEARCH & ASK
-============================================================
+#============================================================
+#TAB 1 SEARCH & ASK
+#============================================================
 def tab_search_and_ask(product: str):
 st.markdown("### 🔍 Search SAP Documentation & Ask Questions")
 st.markdown(
@@ -1594,9 +1594,9 @@ f'📕 <a href="{pdf}" target="_blank">{filename}</a>'
 f'</div>',
 unsafe_allow_html=True,
 )
-============================================================
-TAB 2 — DOCUMENT VIEWER
-============================================================
+#============================================================
+#2 DOCUMENT VIEWER
+#============================================================
 def tab_document_viewer(product: str):
 st.markdown("### 📄 SAP Document Viewer")
 st.markdown(
@@ -1628,7 +1628,7 @@ st.warning("⚠️ Document fetched but title not found. Check URL.")
 if not st.session_state.fetched_docs:
 st.markdown(
 '<div class="info-box">📄 No documents fetched yet. '
-'Use the Search & Ask tab to search for topics, '
+'Use the Search & Ask to search for topics, '
 'or paste a SAP Help Portal URL above.</div>',
 unsafe_allow_html=True,
 )
@@ -1711,9 +1711,9 @@ st.session_state.conversation.append({
 "description": ""}],
 "product": product,
 })
-============================================================
-TAB 3 — UPGRADE PLANNER
-============================================================
+#============================================================
+#3 UPGRADE PLANNER
+#============================================================
 def tab_upgrade_planner(product: str):
 st.markdown("### 📋 SAP Upgrade Project Planner")
 st.markdown(
@@ -1930,7 +1930,7 @@ if st.button("🚀 Generate Complete Upgrade Plan", type="primary", use_containe
         })
 
 # ============================================================
-# TAB 4 — UPGRADE MATRIX
+# 4  UPGRADE MATRIX
 # ============================================================
 def tab_upgrade_matrix():
     st.markdown("### 🔄 SAP Upgrade Path Matrix")
@@ -2105,7 +2105,7 @@ def tab_upgrade_matrix():
             )
 
 # ============================================================
-# TAB 5 — PARAMETERS
+# 5 — PARAMETERS
 # ============================================================
 def tab_parameters():
     st.markdown("### ⚙️ SAP Parameter Recommendation Engine")
@@ -2320,7 +2320,7 @@ def tab_parameters():
             )
 
 # ============================================================
-# TAB 6 — CHECKLIST
+# 6 — CHECKLIST
 # ============================================================
 def tab_checklist_ui():
     st.markdown("### ✅ Pre-Upgrade Checklist Generator")
@@ -2459,20 +2459,20 @@ def tab_checklist_ui():
         )
 
 # ============================================================
-# TAB 7 — CONVERSATION HISTORY
+# 7 — CONVERSATION HISTORY
 # ============================================================
 def tab_conversation():
     st.markdown("### 💬 Conversation History")
     st.markdown(
         '<div class="info-box">All questions and answers from this session are saved here. '
-        'Use the Reports tab to export them as a formatted HTML report.</div>',
+        'Use the Reports to export them as a formatted HTML report.</div>',
         unsafe_allow_html=True,
     )
 
     if not st.session_state.conversation:
         st.markdown(
             '<div class="info-box">💬 No conversations yet. '
-            'Use the Search & Ask tab to get started.</div>',
+            'Use the Search & Ask to get started.</div>',
             unsafe_allow_html=True,
         )
         return
@@ -2518,7 +2518,7 @@ def tab_conversation():
                     )
 
 # ============================================================
-# TAB 8 — REPORTS
+# 8 — REPORTS
 # ============================================================
 def tab_reports():
     st.markdown("### 📄 Export Reports & Session Data")
@@ -2532,7 +2532,7 @@ def tab_reports():
     if not st.session_state.conversation:
         st.markdown(
             '<div class="warn-box">⚠️ No Q&A data yet. '
-            'Use the Search & Ask tab to ask questions first, '
+            'Use the Search & Ask to ask questions first, '
             'then return here to generate your report.</div>',
             unsafe_allow_html=True,
         )
@@ -2685,7 +2685,7 @@ def tab_reports():
             )
 
 # ============================================================
-# TAB 9 — RESOURCES
+# 9 — RESOURCES
 # ============================================================
 def tab_resources():
     st.markdown("### 📚 SAP Resource Library")
