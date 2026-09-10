@@ -2151,15 +2151,14 @@ def tab_parameters():
         st.caption(
         f"Sized for: {ram_gb} GB RAM · {n_cpu} CPU cores · {n_users} concurrent users"
         )
-
-            table_rows = ""
-            snippet_lines = [
-                f"# {param_prod} — {param_cat} Parameters",
-                f"# Sized for: {ram_gb} GB RAM | {n_cpu} CPUs | {n_users} concurrent users",
-                f"# Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                f"# Reference: SAP Help Navigator Pro",
-                "",
-            ]
+        table_rows = ""
+        snippet_lines = [
+        f"# {param_prod} — {param_cat} Parameters",
+        f"# Sized for: {ram_gb} GB RAM | {n_cpu} CPUs | {n_users} concurrent users",
+        f"# Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"# Reference: SAP Help Navigator Pro",
+        "",
+        ]
 
             for idx, (pname, pdata) in enumerate(params.items()):
                 value = pdata["value"]
