@@ -1624,8 +1624,8 @@ with col_btn:
             st.session_state.doc_cache[url_input] = doc
 if doc.get("title"):
     st.success(f"✅ Fetched: {doc['title'][:60]}")
-    else:
-        st.warning("⚠️ Document fetched but title not found. Check URL.")
+else:
+    st.warning("⚠️ Document fetched but title not found. Check URL.")
 
 if not st.session_state.fetched_docs:
     st.markdown(
