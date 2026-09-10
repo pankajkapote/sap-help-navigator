@@ -2165,22 +2165,22 @@ def tab_parameters():
             unit  = pdata.get("unit", "")
 
         # Dynamic sizing calculations
-                if "heap_area_total" in pname:
-                    value = str(int(ram_gb * 0.30 * 1024 * 1024 * 1024))
-                elif "heap_area_dia" in pname:
-                    value = str(int(ram_gb * 0.05 * 1024 * 1024 * 1024))
+        if "heap_area_total" in pname:
+            value = str(int(ram_gb * 0.30 * 1024 * 1024 * 1024))
+            elif "heap_area_dia" in pname:
+                value = str(int(ram_gb * 0.05 * 1024 * 1024 * 1024))
                 elif "heap_area_nondia" in pname:
                     value = str(int(ram_gb * 0.10 * 1024 * 1024 * 1024))
-                elif "em/initial_size_MB" in pname:
-                    value = str(max(2048, int(ram_gb * 0.10)))
-                elif "em/max_size_MB" in pname:
-                    value = str(max(4096, int(ram_gb * 0.25)))
-                elif "ztta/roll_extension" in pname:
-                    value = str(int(ram_gb * 0.08 * 1024 * 1024 * 1024))
-                elif "wp_no_dia" in pname:
-                    value = str(max(6, min(n_users // 20, 80)))
-                elif "wp_no_btc" in pname:
-                    value = str(max(2, n_cpu // 8))
+                    elif "em/initial_size_MB" in pname:
+                        value = str(max(2048, int(ram_gb * 0.10)))
+                        elif "em/max_size_MB" in pname:
+                            value = str(max(4096, int(ram_gb * 0.25)))
+                            elif "ztta/roll_extension" in pname:
+                                value = str(int(ram_gb * 0.08 * 1024 * 1024 * 1024))
+                                elif "wp_no_dia" in pname:
+                                    value = str(max(6, min(n_users // 20, 80)))
+                                    elif "wp_no_btc" in pname:
+                                        value = str(max(2, n_cpu // 8))
                 elif "wp_no_spo" in pname:
                     value = str(max(1, n_cpu // 16))
                 elif "wp_no_upd" in pname and "upd2" not in pname:
