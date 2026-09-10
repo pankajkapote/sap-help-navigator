@@ -1378,9 +1378,9 @@ key="manual_key_input",
 help="Get a free key at aistudio.google.com",
 )
 if manual_key:
-st.session_state.api_key = manual_key
-st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+    st.session_state.api_key = manual_key
+    st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Product Selector
 st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
