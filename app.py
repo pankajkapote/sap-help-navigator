@@ -745,30 +745,32 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
 6. SWPM — Software Provisioning Manager (fresh install)
 7. Stack.xml — Generate via Maintenance Planner (NOT manually)
 
-### 🚀 Installation Sequence (SWPM)
-```bash
-1. Prepare OS (filesystem, OS users, kernel parameters)
-2. Install database software
-3. Run SWPM: ./sapinst  (or sapinst.exe on Windows)
-4. Apply latest SAP Kernel patches
-5. Configure ICM, SNC, SSL certificates
-6. Apply Support Packages via SPAM / SAINT
-7. Post-installation configuration (RZ10, SM59, STMS)
-
+# ── Installation / Download ───────────────────────────────
+    if any(k in q for k in ["install", "download", "setup", "deploy",
+                              "sapinst", "swpm", "media", "dvd"]):
+        hits = get_relevant(["install", "download", "sapinst", "setup", "deploy", "media"])
+        ans = f"## 💾 Installation & Download Guide — {product}\n\n"
+        if hits:
+            ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
+        ans += """### 📥 Download Resources
+...
 📋 SAP Note 1680045 — Installation best practices
 📋 SAP Note 2393060 — sapinst / SWPM troubleshooting
 📋 SAP Note 1639498 — How to download SAP software
 """
-return ans
+        return ans
 
-# ── Parameters ────────────────────────────────────────────
-if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
-    hits = get_relevant(["parameter", "profile", "memory", "buffer", "rdisp", "abap/", "icm/"])
-    ans = f"## ⚙️ Parameter Recommendations — {product}\n\n"
-    if hits:
-        ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
-        ans += """
+    # ── Parameters ────────────────────────────────────────────
+    if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
+        hits = get_relevant(["parameter", "profile", "memory", "buffer", "rdisp", "abap/", "icm/"])
+        ans = f"## ⚙️ Parameter Recommendations — {product}\n\n"
+        if hits:
+            ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
+            ans += """
 🔧 Key ABAP Instance Profile Parameters (DEFAULT.PFL)
+...
+"""
+        return ans
 # Memory Settings
 abap/heap_area_total       = 2000000000    # Total heap for all WPs
 abap/heap_area_dia         = 500000000     # Heap per dialog WP
