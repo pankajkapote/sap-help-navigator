@@ -2146,11 +2146,11 @@ def tab_parameters():
                  type="primary", use_container_width=True):
                     params = PARAMETER_DATABASE.get(param_prod, {}).get(param_cat, {})
 
-        if params:
-            st.markdown(f"#### ⚙️ {param_prod} — {(param_cat or '').title()} Parameters")
-            st.caption(
-                f"Sized for: {ram_gb} GB RAM · {n_cpu} CPU cores · {n_users} concurrent users"
-            )
+    if params:
+        st.markdown(f"#### ⚙️ {param_prod} — {(param_cat or '').title()} Parameters")
+        st.caption(
+        f"Sized for: {ram_gb} GB RAM · {n_cpu} CPU cores · {n_users} concurrent users"
+        )
 
             table_rows = ""
             snippet_lines = [
