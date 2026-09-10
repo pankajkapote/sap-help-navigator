@@ -2160,11 +2160,11 @@ def tab_parameters():
         "",
         ]
 
-            for idx, (pname, pdata) in enumerate(params.items()):
-                value = pdata["value"]
-                unit  = pdata.get("unit", "")
+        for idx, (pname, pdata) in enumerate(params.items()):
+            value = pdata["value"]
+            unit  = pdata.get("unit", "")
 
-                # Dynamic sizing calculations
+        # Dynamic sizing calculations
                 if "heap_area_total" in pname:
                     value = str(int(ram_gb * 0.30 * 1024 * 1024 * 1024))
                 elif "heap_area_dia" in pname:
