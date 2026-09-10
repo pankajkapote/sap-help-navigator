@@ -758,7 +758,7 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
 📋 SAP Note 2393060 — sapinst / SWPM troubleshooting
 📋 SAP Note 1639498 — How to download SAP software
 """
-return ans
+    return ans
 
 # ── Parameters ────────────────────────────────────────────
 if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
@@ -769,7 +769,7 @@ if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "s
         ans += """
 🔧 Key ABAP Instance Profile Parameters (DEFAULT.PFL)
 """
-return ans
+    return ans
 # Memory Settings
 abap/heap_area_total       = 2000000000    # Total heap for all WPs
 abap/heap_area_dia         = 500000000     # Heap per dialog WP
@@ -793,7 +793,7 @@ abap/buffersize            = 600000        # ABAP program buffer
 login/min_password_lng     = 8             # Minimum password length
 login/fails_to_user_lock   = 5             # Lockout threshold
 rsau/enable                = 1             # Enable security audit log
-"""
+
 🗄️ SAP HANA Parameters (global.ini)
 [memorymanager]
 global_allocation_limit     = <80% of total RAM in MB>
@@ -828,7 +828,7 @@ net.ipv4.tcp_max_syn_backlog = 8192
 📋 SAP Note 2222200 — Recommended SAP HANA settings
 📋 SAP Note 1984787 — OS parameters for SAP on Linux
 """
-return ans
+    return ans
 
 # ── Dependencies ──────────────────────────────────────────
 if any(k in q for k in ["depend", "compatib", "stack", "component",
