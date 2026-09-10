@@ -1055,9 +1055,9 @@ Select a product in the sidebar and use the Quick Questions buttons for best res
 """
 return ans
 
-============================================================
-PRE-UPGRADE CHECKLIST GENERATOR
-============================================================
+#============================================================
+#PRE-UPGRADE CHECKLIST GENERATOR
+#============================================================
 def generate_checklist(source: str, target: str, opts: dict) -> list:
 """Generate a prioritized pre-upgrade checklist."""
 items = [
