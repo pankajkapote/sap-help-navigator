@@ -760,13 +760,13 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
 """
 return ans
 
-    # ── Parameters ────────────────────────────────────────────
-    if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
-        hits = get_relevant(["parameter", "profile", "memory", "buffer", "rdisp", "abap/", "icm/"])
-        ans = f"## ⚙️ Parameter Recommendations — {product}\n\n"
-        if hits:
-            ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
-            ans += """
+# ── Parameters ────────────────────────────────────────────
+if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
+    hits = get_relevant(["parameter", "profile", "memory", "buffer", "rdisp", "abap/", "icm/"])
+    ans = f"## ⚙️ Parameter Recommendations — {product}\n\n"
+    if hits:
+        ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
+        ans += """
 🔧 Key ABAP Instance Profile Parameters (DEFAULT.PFL)
 """
         return ans
