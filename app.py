@@ -1170,39 +1170,39 @@ def generate_checklist(source: str, target: str, opts: dict) -> list:
 
 # Optional items based on system characteristics
 if opts.get("has_custom_code"):
-items.append({
-"cat": "Custom Code", "icon": "🖊️", "pri": "Critical",
-"task": "Complete ALL custom code remediations before SUM EXTRACTONLY",
-"detail": "Zero critical ATC findings required; all high findings must be documented and accepted",
-"tool": "SCMA / ATC / Eclipse ADT", "note": "2190420",
-})
+    items.append({
+        "cat": "Custom Code", "icon": "🖊️", "pri": "Critical",
+        "task": "Complete ALL custom code remediations before SUM EXTRACTONLY",
+        "detail": "Zero critical ATC findings required; all high findings must be documented and accepted",
+        "tool": "SCMA / ATC / Eclipse ADT", "note": "2190420",
+    })
 if opts.get("has_interfaces"):
-items.append({
-"cat": "Integration", "icon": "🔗", "pri": "High",
-"task": "Document all RFC / iDoc / Web Service interface connections",
-"detail": "List SM59 RFC destinations, WE20 iDoc partners, SOAMANAGER Web Services",
-"tool": "SM59, WE20, SOAMANAGER", "note": "",
-})
-items.append({
-"cat": "Integration", "icon": "🔗", "pri": "High",
-"task": "Coordinate maintenance window with all interface counterpart systems",
-"detail": "Notify upstream / downstream systems; plan reconnection sequence after upgrade",
-"tool": "Project coordination", "note": "",
-})
+    items.append({
+        "cat": "Integration", "icon": "🔗", "pri": "High",
+        "task": "Document all RFC / iDoc / Web Service interface connections",
+        "detail": "List SM59 RFC destinations, WE20 iDoc partners, SOAMANAGER Web Services",
+        "tool": "SM59, WE20, SOAMANAGER", "note": "",
+    })
+    items.append({
+        "cat": "Integration", "icon": "🔗", "pri": "High",
+        "task": "Coordinate maintenance window with all interface counterpart systems",
+        "detail": "Notify upstream / downstream systems; plan reconnection sequence after upgrade",
+        "tool": "Project coordination", "note": "",
+    })
 if opts.get("ha_required"):
-items.append({
-"cat": "High Availability", "icon": "🛡️", "pri": "High",
-"task": "Plan HA cluster failover procedure for upgrade downtime window",
-"detail": "Define cluster failover and rollback procedure for Pacemaker / MSCS / HANA SR",
-"tool": "Pacemaker / MSCS / hdbnsutil -sr_state", "note": "1872602",
-})
+    items.append({
+        "cat": "High Availability", "icon": "🛡️", "pri": "High",
+        "task": "Plan HA cluster failover procedure for upgrade downtime window",
+        "detail": "Define cluster failover and rollback procedure for Pacemaker / MSCS / HANA SR",
+        "tool": "Pacemaker / MSCS / hdbnsutil -sr_state", "note": "1872602",
+    })
 if opts.get("non_unicode"):
-items.append({
-"cat": "System Assessment", "icon": "🔍", "pri": "Critical",
-"task": "Plan Unicode conversion — mandatory for S/4HANA target",
-"detail": "S/4HANA requires Unicode system; combine Unicode conversion with SUM using UCCHECK",
-"tool": "UCCHECK / SUM", "note": "73606",
-})
+    items.append({
+        "cat": "System Assessment", "icon": "🔍", "pri": "Critical",
+        "task": "Plan Unicode conversion — mandatory for S/4HANA target",
+        "detail": "S/4HANA requires Unicode system; combine Unicode conversion with SUM using UCCHECK",
+        "tool": "UCCHECK / SUM", "note": "73606",
+    })
 return items
 ============================================================
 HTML REPORT GENERATOR
