@@ -2167,13 +2167,13 @@ def tab_parameters():
         # Dynamic sizing calculations
         if "heap_area_total" in pname:
             value = str(int(ram_gb * 0.30 * 1024 * 1024 * 1024))
-            elif "heap_area_dia" in pname:
-                value = str(int(ram_gb * 0.05 * 1024 * 1024 * 1024))
-                elif "heap_area_nondia" in pname:
-                    value = str(int(ram_gb * 0.10 * 1024 * 1024 * 1024))
-                    elif "em/initial_size_MB" in pname:
-                        value = str(max(2048, int(ram_gb * 0.10)))
-                        elif "em/max_size_MB" in pname:
+        elif "heap_area_dia" in pname:
+            value = str(int(ram_gb * 0.05 * 1024 * 1024 * 1024))
+        elif "heap_area_nondia" in pname:
+            value = str(int(ram_gb * 0.10 * 1024 * 1024 * 1024))
+        elif "em/initial_size_MB" in pname:
+            value = str(max(2048, int(ram_gb * 0.10)))
+        elif "em/max_size_MB" in pname:
                             value = str(max(4096, int(ram_gb * 0.25)))
                             elif "ztta/roll_extension" in pname:
                                 value = str(int(ram_gb * 0.08 * 1024 * 1024 * 1024))
