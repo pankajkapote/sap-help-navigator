@@ -1658,33 +1658,33 @@ with col_link:
 # Section tabs if sections were detected
 sections = doc.get("sections", {})
 if sections:
-st.markdown("##### 📑 Detected Document Sections")
-sec_tab_labels = [f"📌 {s.replace('_', ' ').title()}" for s in sections]
-sec_tabs = st.tabs(sec_tab_labels)
+    st.markdown("##### 📑 Detected Document Sections")
+    sec_tab_labels = [f"📌 {s.replace('_', ' ').title()}" for s in sections]
+    sec_tabs = st.tabs(sec_tab_labels)
 for i, (sec_name, sec_content) in enumerate(sections.items()):
-with sec_tabs[i]:
-st.markdown(sec_content)
+    with sec_tabs[i]:
+        st.markdown(sec_content)
 
 # PDF links found in document
 col_content, col_links = st.columns([3, 1])
 with col_content:
-with st.expander("📖 View Full Document Text"):
-st.text_area(
-"Document content",
-doc.get("content", "No content extracted")[:5000],
-height=350,
-label_visibility="collapsed",
-)
+    with st.expander("📖 View Full Document Text"):
+        st.text_area(
+        "Document content",
+        doc.get("content", "No content extracted")[:5000],
+        height=350,
+        label_visibility="collapsed",
+        )
 with col_links:
-if doc.get("pdf_links"):
-st.markdown("**📥 PDFs in this doc:**")
-for pdf in doc["pdf_links"][:5]:
-fn = pdf.split("/")[-1]
-st.markdown(
-f'<a href="{pdf}" target="_blank" style="font-size:.82rem">'
-f'📕 {fn[:30]}</a>',
-unsafe_allow_html=True,
-)
+    if doc.get("pdf_links"):
+    st.markdown("**📥 PDFs in this doc:**")
+    for pdf in doc["pdf_links"][:5]:
+        fn = pdf.split("/")[-1]
+        st.markdown(
+        f'<a href="{pdf}" target="_blank" style="font-size:.82rem">'
+        f'📕 {fn[:30]}</a>',
+        unsafe_allow_html=True,
+        )
 
 # Ask a question about this specific document
 st.markdown("---")
@@ -1717,46 +1717,45 @@ st.session_state.conversation.append({
 #3 UPGRADE PLANNER
 #============================================================
 def tab_upgrade_planner(product: str):
-st.markdown("### 📋 SAP Upgrade Project Planner")
-st.markdown(
-'<div class="info-box">📋 Fill in your upgrade scenario details to generate '
-'a complete, phased upgrade project plan with detailed steps, '
-'key SAP Notes, and downloadable reports.</div>',
-unsafe_allow_html=True,
-)
+    st.markdown("### 📋 SAP Upgrade Project Planner")
+    st.markdown(
+    '<div class="info-box">📋 Fill in your upgrade scenario details to generate '
+    'a complete, phased upgrade project plan with detailed steps, '
+    'key SAP Notes, and downloadable reports.</div>',
+    unsafe_allow_html=True,
+    )
 
 col1, col2, col3 = st.columns(3)
 with col1:
-src_release = st.text_input("Source Release",
-placeholder="e.g. SAP ECC 6.0 EHP8", key="up_src")
-src_db = st.selectbox("Source Database",
-["", "SAP HANA", "Oracle", "MS SQL Server",
-"IBM DB2", "MaxDB", "Sybase ASE"], key="up_sdb")
+    src_release = st.text_input("Source Release",
+    placeholder="e.g. SAP ECC 6.0 EHP8", key="up_src")
+    src_db = st.selectbox("Source Database",
+    ["", "SAP HANA", "Oracle", "MS SQL Server",
+    "IBM DB2", "MaxDB", "Sybase ASE"], key="up_sdb")
 with col2:
-tgt_release = st.text_input("Target Release",
-placeholder="e.g. SAP S/4HANA 2023", key="up_tgt")
-tgt_db = st.selectbox("Target Database",
-["", "SAP HANA", "Oracle", "MS SQL Server"], key="up_tdb")
+    tgt_release = st.text_input("Target Release",
+    placeholder="e.g. SAP S/4HANA 2023", key="up_tgt")
+    tgt_db = st.selectbox("Target Database",
+    ["", "SAP HANA", "Oracle", "MS SQL Server"], key="up_tdb")
 with col3:
-os_plat = st.selectbox("OS Platform",
-["", "Linux RHEL 8", "Linux RHEL 9",
-"Linux SLES 15", "Windows Server 2022", "IBM AIX"],
-key="up_os")
-timeline = st.selectbox("Project Timeline",
-["", "3 months", "6 months",
-"9 months", "12 months", "18 months"],
-key="up_tl")
-
-col_a, col_b = st.columns(2)
+    os_plat = st.selectbox("OS Platform",
+    ["", "Linux RHEL 8", "Linux RHEL 9",
+    "Linux SLES 15", "Windows Server 2022", "IBM AIX"],
+    key="up_os")
+    timeline = st.selectbox("Project Timeline",
+    ["", "3 months", "6 months",
+    "9 months", "12 months", "18 months"],
+    key="up_tl")
+    col_a, col_b = st.columns(2)
 with col_a:
-sys_size = st.selectbox("System Size",
-["", "Small (<100 users)", "Medium (100–500)",
-"Large (500–2000)", "Enterprise (2000+)"], key="up_sz")
-has_cc = st.checkbox("Has Custom Code / Z-Developments", value=True, key="up_cc")
+    sys_size = st.selectbox("System Size",
+    ["", "Small (<100 users)", "Medium (100–500)",
+    "Large (500–2000)", "Enterprise (2000+)"], key="up_sz")
+    has_cc = st.checkbox("Has Custom Code / Z-Developments", value=True, key="up_cc")
 with col_b:
-has_if = st.checkbox("Has Interface Connections", value=True, key="up_if")
-ha_req = st.checkbox("High Availability Required", value=False, key="up_ha")
-non_uc = st.checkbox("Non-Unicode System", value=False, key="up_uc")
+    has_if = st.checkbox("Has Interface Connections", value=True, key="up_if")
+    ha_req = st.checkbox("High Availability Required", value=False, key="up_ha")
+    non_uc = st.checkbox("Non-Unicode System", value=False, key="up_uc")
 
 if st.button("🚀 Generate Complete Upgrade Plan", type="primary", use_container_width=True):
         if not src_release or not tgt_release:
