@@ -2174,30 +2174,29 @@ def tab_parameters():
         elif "em/initial_size_MB" in pname:
             value = str(max(2048, int(ram_gb * 0.10)))
         elif "em/max_size_MB" in pname:
-                            value = str(max(4096, int(ram_gb * 0.25)))
-                            elif "ztta/roll_extension" in pname:
-                                value = str(int(ram_gb * 0.08 * 1024 * 1024 * 1024))
-                                elif "wp_no_dia" in pname:
-                                    value = str(max(6, min(n_users // 20, 80)))
-                                    elif "wp_no_btc" in pname:
-                                        value = str(max(2, n_cpu // 8))
-                elif "wp_no_spo" in pname:
-                    value = str(max(1, n_cpu // 16))
-                elif "wp_no_upd" in pname and "upd2" not in pname:
-                    value = str(max(2, n_cpu // 16))
-                elif "icm/max_conn" in pname:
-                    value = str(max(200, n_users * 3))
-                elif "enque/table_size" in pname:
-                    value = str(max(4194304, n_users * 1024))
-                elif "global_allocation_limit" in pname and param_prod == "SAP HANA":
-                    value = str(int(ram_gb * 0.80 * 1024))
-                    unit  = "MB"
-                elif "shared_objects_size_MB" in pname:
-                    value = str(max(256, int(ram_gb * 0.02 * 1024)))
-
-                note_html = (
-                    f'<a href="https://launchpad.support.sap.com/#/notes/{pdata["note"]}" '
-                    f'target="_blank" style="font-size:.82rem">📋 {pdata["note"]}</a>'
+            value = str(max(4096, int(ram_gb * 0.25)))
+        elif "ztta/roll_extension" in pname:
+            value = str(int(ram_gb * 0.08 * 1024 * 1024 * 1024))
+        elif "wp_no_dia" in pname:
+            value = str(max(6, min(n_users // 20, 80)))
+        elif "wp_no_btc" in pname:
+            value = str(max(2, n_cpu // 8))
+        elif "wp_no_spo" in pname:
+            value = str(max(1, n_cpu // 16))
+        elif "wp_no_upd" in pname and "upd2" not in pname:
+            value = str(max(2, n_cpu // 16))
+        elif "icm/max_conn" in pname:
+            value = str(max(200, n_users * 3))
+        elif "enque/table_size" in pname:
+            value = str(max(4194304, n_users * 1024))
+        elif "global_allocation_limit" in pname and param_prod == "SAP HANA":
+            value = str(int(ram_gb * 0.80 * 1024))
+            unit  = "MB"
+        elif "shared_objects_size_MB" in pname:
+            value = str(max(256, int(ram_gb * 0.02 * 1024)))
+            note_html = (
+                f'<a href="https://launchpad.support.sap.com/#/notes/{pdata["note"]}" '
+                f'target="_blank" style="font-size:.82rem">📋 {pdata["note"]}</a>'
                 ) if pdata.get("note") else "—"
 
                 row_bg = "#f8fafc" if idx % 2 == 0 else "#ffffff"
