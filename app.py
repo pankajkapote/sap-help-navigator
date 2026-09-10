@@ -762,8 +762,7 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
 return ans
 
 # ── Parameters ────────────────────────────────────────────
-if any(k in q for k in ["parameter", "profile", "config", "tuning",
-"memory", "sizing", "rz10", "buffer", "work process"]):
+if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
 hits = get_relevant(["parameter", "profile", "memory", "buffer", "rdisp", "abap/", "icm/"])
 ans = f"## ⚙️ Parameter Recommendations — {product}\n\n"
 if hits:
