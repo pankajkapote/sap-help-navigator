@@ -760,16 +760,13 @@ def _rule_based_answer(question: str, context: str, product: str = "") -> str:
 """
 return ans
 
-# ── Parameters ────────────────────────────────────────────
-if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
-    hits = get_relevant(["parameter", "profile", "memory", "buffer", "rdisp", "abap/", "icm/"])
-    ans = f"## ⚙️ Parameter Recommendations — {product}\n\n"
-    if hits:
-        ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
-        ans += """
-🔧 Key ABAP Instance Profile Parameters (DEFAULT.PFL)
-"""
-    return ans
+# — Parameters ————————————————————————————————
+    if any(k in q for k in ["parameter", "profile", "config", "tuning", "memory", "sizing", "rz10", "buffer", "work process"]):
+        hits = get_relevant(["parameter", "profile", "memory", "buffer", "rdisp", "abap/", "icm/"])
+        ans = f"## ⚙️ Parameter Recommendations — {product}\n\n"
+        if hits:
+            ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
+        ans += """🔧 Key ABAP Instance Profile Parameters (DEFAULT.PFL)
 # Memory Settings
 abap/heap_area_total       = 2000000000    # Total heap for all WPs
 abap/heap_area_dia         = 500000000     # Heap per dialog WP
@@ -806,7 +803,6 @@ optimization_target         = balanced
 result_cache_entry_lifetime = 300
 
 🐧 OS Kernel Parameters (/etc/sysctl.conf)
-
 vm.max_map_count            = 2147483647
 vm.swappiness               = 10
 kernel.shmmax               = <total RAM in bytes>
@@ -816,7 +812,6 @@ net.core.somaxconn          = 4096
 net.ipv4.tcp_max_syn_backlog = 8192
 
 🔧 Key Transactions
-
 | Transaction | Purpose |
 |---|---|
 | **RZ10** | Maintain instance / default profiles |
@@ -828,8 +823,7 @@ net.ipv4.tcp_max_syn_backlog = 8192
 📋 SAP Note 2222200 — Recommended SAP HANA settings
 📋 SAP Note 1984787 — OS parameters for SAP on Linux
 """
-    return ans
-
+        return ans
 # ── Dependencies ──────────────────────────────────────────
 if any(k in q for k in ["depend", "compatib", "stack", "component",
     "kernel version", "patch level", "version matrix"]):
