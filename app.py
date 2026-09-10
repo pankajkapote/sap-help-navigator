@@ -831,12 +831,12 @@ return ans
 
 # ── Dependencies ──────────────────────────────────────────
 if any(k in q for k in ["depend", "compatib", "stack", "component",
-"kernel version", "patch level", "version matrix"]):
-hits = get_relevant(["depend", "compatib", "kernel", "patch", "component", "version", "SP"])
-ans = f"## 🔗 Dependencies & Compatibility — {product}\n\n"
-if hits:
-ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
-ans += """
+    "kernel version", "patch level", "version matrix"]):
+    hits = get_relevant(["depend", "compatib", "kernel", "patch", "component", "version", "SP"])
+    ans = f"## 🔗 Dependencies & Compatibility — {product}\n\n"
+    if hits:
+        ans += "**From SAP documentation:**\n" + "\n".join(f"- {l}" for l in hits) + "\n\n"
+        ans += """
 🔗 Standard Component Dependency Matrix
 COMPONENT
 MINIMUM VERSION
@@ -878,8 +878,8 @@ return ans
 # ── Best Practices ────────────────────────────────────────
 if any(k in q for k in ["best practice", "recommendation", "guideline",
 "tip", "advice", "approach"]):
-ans = f"## 🌟 Best Practices — {product}\n\n"
-ans += """
+    ans = f"## 🌟 Best Practices — {product}\n\n"
+    ans += """
 🔄 Upgrade & Migration Best Practices
 Always upgrade DEV → QAS → PRD — never skip environments
 Maintain 2 verified backups before production upgrade (test restore!)
@@ -932,8 +932,8 @@ return ans
 # ── Upgrade Plan ──────────────────────────────────────────
 if any(k in q for k in ["plan", "step", "procedure", "how to",
 "phase", "project", "roadmap", "execute"]):
-ans = f"## 📋 Upgrade Project Plan — {product}\n\n"
-ans += """
+    ans = f"## 📋 Upgrade Project Plan — {product}\n\n"
+    ans += """
 Phase 1: Assessment & Planning (Weeks 1–3)
 System inventory: release, SP level, add-ons (SPAM / SAINT)
 Run SAP Readiness Check: /SDF/RC_START_CHECK — resolve all findings
@@ -993,8 +993,8 @@ return ans
 
 # ── Downloads / PDFs ──────────────────────────────────────
 if any(k in q for k in ["download", "pdf", "where to find", "guide", "document"]):
-ans = f"## ⬇️ Downloads & Documentation — {product}\n\n"
-ans += """
+    ans = f"## ⬇️ Downloads & Documentation — {product}\n\n"
+    ans += """
 📥 SAP Software Download Center
 RESOURCE
 URL
@@ -1043,10 +1043,10 @@ hits = [l for l in lines if len(l) > 40][:12]
 ans = f"## 📖 SAP Documentation Answer — {product}\n\n"
 ans += f"Your question: {question}\n\n"
 if hits:
-ans += "Extracted from SAP Help Portal documentation:\n\n"
-ans += "\n\n".join(hits[:8])
-else:
-ans += f"""### 💡 Suggested Next Steps
+    ans += "Extracted from SAP Help Portal documentation:\n\n"
+    ans += "\n\n".join(hits[:8])
+    else:
+        ans += f"""### 💡 Suggested Next Steps
 SAP Help Portal — Search for {product or question}
 SAP Community — Real-world answers at community.sap.com
 SAP Support Notes — Technical details at launchpad.support.sap.com
