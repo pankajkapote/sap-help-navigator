@@ -1563,22 +1563,22 @@ unsafe_allow_html=True,
 
 # Display source documents
 if results:
-st.markdown("### 🔗 Source Documents from SAP Help Portal")
+    st.markdown("### 🔗 Source Documents from SAP Help Portal")
 for r in results[:6]:
-st.markdown(
-f'<div class="source-card">'
-f'<a href="{r["url"]}" target="_blank">📄 {r["title"]}</a><br>'
-f'<small style="color:#6b7280">'
-f'{r.get("description", "")[:120]}'
-f'</small><br>'
-f'<small style="color:#94a3b8">'
-f'Source: {r.get("source", "SAP Help Portal")} &nbsp;·&nbsp; '
-f'<a href="{r["url"]}" target="_blank" style="color:#94a3b8">'
-f'{r["url"][:65]}…</a>'
-f'</small>'
-f'</div>',
-unsafe_allow_html=True,
-)
+    st.markdown(
+    f'<div class="source-card">'
+    f'<a href="{r["url"]}" target="_blank">📄 {r["title"]}</a><br>'
+    f'<small style="color:#6b7280">'
+    f'{r.get("description", "")[:120]}'
+    f'</small><br>'
+    f'<small style="color:#94a3b8">'
+    f'Source: {r.get("source", "SAP Help Portal")} &nbsp;·&nbsp; '
+    f'<a href="{r["url"]}" target="_blank" style="color:#94a3b8">'
+    f'{r["url"][:65]}…</a>'
+    f'</small>'
+    f'</div>',
+    unsafe_allow_html=True,
+    )
 
 # Display PDF links found
 all_pdfs = list({
@@ -1587,53 +1587,53 @@ for doc in st.session_state.fetched_docs.values()
 for pdf in doc.get("pdf_links", [])
 })
 if all_pdfs:
-st.markdown("### 📥 PDF Documents Found")
-for pdf in all_pdfs[:6]:
-filename = pdf.split("/")[-1] or "document.pdf"
-st.markdown(
-f'<div class="source-card">'
-f'📕 <a href="{pdf}" target="_blank">{filename}</a>'
-f'</div>',
-unsafe_allow_html=True,
-)
+    st.markdown("### 📥 PDF Documents Found")
+    for pdf in all_pdfs[:6]:
+        filename = pdf.split("/")[-1] or "document.pdf"
+        st.markdown(
+        f'<div class="source-card">'
+        f'📕 <a href="{pdf}" target="_blank">{filename}</a>'
+        f'</div>',
+        unsafe_allow_html=True,
+        )
 #============================================================
 #2 DOCUMENT VIEWER
 #============================================================
 def tab_document_viewer(product: str):
-st.markdown("### 📄 SAP Document Viewer")
-st.markdown(
-'<div class="info-box">📄 Paste any SAP Help Portal URL to fetch and '
-'parse the document. The tool extracts key sections and lets you ask '
-'specific questions about the document content.</div>',
-unsafe_allow_html=True,
-)
+    st.markdown("### 📄 SAP Document Viewer")
+    st.markdown(
+    '<div class="info-box">📄 Paste any SAP Help Portal URL to fetch and '
+    'parse the document. The tool extracts key sections and lets you ask '
+    'specific questions about the document content.</div>',
+    unsafe_allow_html=True,
+    )
 
 col_url, col_btn = st.columns([4, 1])
 with col_url:
-url_input = st.text_input(
-"SAP Help Portal URL",
-placeholder="https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/...",
-key="doc_url_input",
-)
+    url_input = st.text_input(
+    "SAP Help Portal URL",
+    placeholder="https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/...",
+    key="doc_url_input",
+    )
 with col_btn:
-st.markdown("<br>", unsafe_allow_html=True)
-if st.button("📥 Fetch Document", use_container_width=True) and url_input:
-with st.spinner("📄 Fetching document content…"):
-doc = extract_doc_content(url_input)
-st.session_state.fetched_docs[url_input] = doc
-st.session_state.doc_cache[url_input] = doc
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("📥 Fetch Document", use_container_width=True) and url_input:
+        with st.spinner("📄 Fetching document content…"):
+            doc = extract_doc_content(url_input)
+            st.session_state.fetched_docs[url_input] = doc
+            st.session_state.doc_cache[url_input] = doc
 if doc.get("title"):
-st.success(f"✅ Fetched: {doc['title'][:60]}")
-else:
-st.warning("⚠️ Document fetched but title not found. Check URL.")
+    st.success(f"✅ Fetched: {doc['title'][:60]}")
+    else:
+        st.warning("⚠️ Document fetched but title not found. Check URL.")
 
 if not st.session_state.fetched_docs:
-st.markdown(
-'<div class="info-box">📄 No documents fetched yet. '
-'Use the Search & Ask to search for topics, '
-'or paste a SAP Help Portal URL above.</div>',
-unsafe_allow_html=True,
-)
+    st.markdown(
+    '<div class="info-box">📄 No documents fetched yet. '
+    'Use the Search & Ask to search for topics, '
+    'or paste a SAP Help Portal URL above.</div>',
+    unsafe_allow_html=True,
+    )
 return
 
 # Document selector
@@ -1647,13 +1647,13 @@ doc = st.session_state.fetched_docs[selected_url]
 # Document header
 col_title, col_link = st.columns([3, 1])
 with col_title:
-st.markdown(f"#### 📄 {doc.get('title', 'Document')}")
+    st.markdown(f"#### 📄 {doc.get('title', 'Document')}")
 with col_link:
-st.markdown(
-f'<a href="{selected_url}" target="_blank">'
-f'🔗 Open on SAP Help Portal</a>',
-unsafe_allow_html=True,
-)
+    st.markdown(
+    f'<a href="{selected_url}" target="_blank">'
+    f'🔗 Open on SAP Help Portal</a>',
+    unsafe_allow_html=True,
+    )
 
 # Section tabs if sections were detected
 sections = doc.get("sections", {})
