@@ -1039,7 +1039,7 @@ SAP Note 1639498 — How to request download authorization
 """
 return ans
 
-── Generic fallback ──────────────────────────────────────
+#── Generic fallback ──────────────────────────────────────
 hits = [l for l in lines if len(l) > 40][:12]
 ans = f"## 📖 SAP Documentation Answer — {product}\n\n"
 ans += f"Your question: {question}\n\n"
