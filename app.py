@@ -1209,8 +1209,8 @@ return items
 #============================================================
 def generate_html_report(product: str, question: str, answer: str,
 sources: list, checklist: list) -> str:
-"""Build a self-contained downloadable HTML report."""
-now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    """Build a self-contained downloadable HTML report."""
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 # Build checklist table if provided
 checklist_section = ""
