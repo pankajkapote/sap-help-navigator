@@ -1479,16 +1479,16 @@ unsafe_allow_html=True,
 
 col_q, col_btn = st.columns([5, 1])
 with col_q:
-default_q = st.session_state.pop("quick_q", "")
-question = st.text_input(
-"Your question",
-value=default_q,
-placeholder="e.g. What are the prerequisites for upgrading SAP S/4HANA 2022 to 2023?",
-key="main_question",
-label_visibility="collapsed",
-)
+    default_q = st.session_state.pop("quick_q", "")
+    question = st.text_input(
+    "Your question",
+    value=default_q,
+    placeholder="e.g. What are the prerequisites for upgrading SAP S/4HANA 2022 to 2023?",
+    key="main_question",
+    label_visibility="collapsed",
+    )
 with col_btn:
-go = st.button("🔍 Search", type="primary", use_container_width=True)
+    go = st.button("🔍 Search", type="primary", use_container_width=True)
 
 # Suggestion buttons
 st.markdown("**💡 Suggested questions:**")
@@ -1502,38 +1502,38 @@ sugs = [
 ]
 sug_cols = st.columns(len(sugs))
 for i, sug in enumerate(sugs):
-with sug_cols[i]:
-if st.button(sug, key=f"sug_{i}"):
-st.session_state.quick_q = sug
-st.rerun()
+    with sug_cols[i]:
+        if st.button(sug, key=f"sug_{i}"):
+            st.session_state.quick_q = sug
+            st.rerun()
 
 if go and question:
-# Add to search history
-if question not in st.session_state.search_history:
-st.session_state.search_history.append(question)
+    # Add to search history
+    if question not in st.session_state.search_history:
+        st.session_state.search_history.append(question)
 
 # Search for documents
 with st.spinner("🔍 Searching SAP Help Portal…"):
-results = search_sap_help(question, product)
+    results = search_sap_help(question, product)
 
 # Fetch document content
 with st.spinner("📄 Reading SAP documentation…"):
-context = ""
-for res in results[:3]:
-url = res["url"]
+    context = ""
+    for res in results[:3]:
+        url = res["url"]
 if url not in st.session_state.doc_cache:
-doc = extract_doc_content(url)
-st.session_state.doc_cache[url] = doc
-st.session_state.fetched_docs[url] = doc
-doc = st.session_state.doc_cache[url]
-context += (
-f"\n\n=== SOURCE: {doc.get('title', '')} ===\n"
-f"{doc.get('content', '')[:3000]}"
-)
+    doc = extract_doc_content(url)
+    st.session_state.doc_cache[url] = doc
+    st.session_state.fetched_docs[url] = doc
+    doc = st.session_state.doc_cache[url]
+    context += (
+    f"\n\n=== SOURCE: {doc.get('title', '')} ===\n"
+    f"{doc.get('content', '')[:3000]}"
+    )
 
 # Generate answer
 with st.spinner("🤖 Generating answer…"):
-answer = get_ai_answer(question, context, st.session_state.api_key, product)
+    answer = get_ai_answer(question, context, st.session_state.api_key, product)
 
 # Save to conversation history
 st.session_state.conversation.append({
