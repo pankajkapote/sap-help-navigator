@@ -1395,7 +1395,7 @@ key="product_selector",
 label_visibility="collapsed",
 )
 if selected != st.session_state.current_product:
-st.session_state.current_product = selected
+    st.session_state.current_product = selected
 
 custom = st.text_input(
 "Or type custom product",
@@ -1403,8 +1403,8 @@ placeholder="e.g. SAP Fieldglass",
 key="custom_product",
 )
 if custom:
-st.session_state.current_product = custom
-st.markdown('</div>', unsafe_allow_html=True)
+    st.session_state.current_product = custom
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # Quick Question Buttons
 st.markdown("**⚡ Quick Questions**")
