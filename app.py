@@ -2143,8 +2143,8 @@ def tab_parameters():
         n_cpu    = st.number_input("CPU Cores",         min_value=1,   max_value=512,   value=32,  step=4,   key="p_cpu")
 
     if st.button("⚙️ Generate Parameter Recommendations",
-                 type="primary", use_container_width=True):```python
-        params = PARAMETER_DATABASE.get(param_prod, {}).get(param_cat, {})
+                 type="primary", use_container_width=True):
+                    params = PARAMETER_DATABASE.get(param_prod, {}).get(param_cat, {})
 
         if params:
             st.markdown(f"#### ⚙️ {param_prod} — {(param_cat or '').title()} Parameters")
