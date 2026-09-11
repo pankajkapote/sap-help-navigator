@@ -1844,13 +1844,16 @@ def render_sidebar():
         st.markdown("### 🔷 SAP Help Navigator")
         st.markdown("---")
 
+        # ----------------------------------------------------
         # API Key Status
+        # ----------------------------------------------------
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
         if st.session_state.api_key:
             try:
                 from_secrets = bool(st.secrets.get("gemini_api_key", ""))
             except Exception:
                 from_secrets = False
+
             if from_secrets:
                 st.success(
                     "🤖 **Gemini AI Active**\n\n"
@@ -1878,13 +1881,18 @@ def render_sidebar():
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # ----------------------------------------------------
         # Product Selector
+        # ----------------------------------------------------
         st.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
         st.markdown("**📦 SAP Product**")
+
         idx = (
             SAP_PRODUCTS.index(st.session_state.current_product)
-            if st.session_state.current_product in SAP_PRODUCTS else 0
+            if st.session_state.current_product in SAP_PRODUCTS
+            else 0
         )
+
         selected = st.selectbox(
             "Select product",
             SAP_PRODUCTS,
@@ -1892,8 +1900,10 @@ def render_sidebar():
             key="product_selector",
             label_visibility="collapsed",
         )
+
         if selected != st.session_state.current_product:
             st.session_state.current_product = selected
+
         custom = st.text_input(
             "Or type custom product",
             placeholder="e.g. SAP Fieldglass",
@@ -1901,9 +1911,13 @@ def render_sidebar():
         )
         if custom:
             st.session_state.current_product = custom
+
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Quick Question Buttons
+        # ----------------------------------------------------
+        # Quick Questions
+        # FIXED: writes directly into main_question
+        # ----------------------------------------------------
         st.markdown("**⚡ Quick Questions**")
         quick_questions = {
             "🔄 Upgrade Path":
@@ -1917,28 +1931,32 @@ def render_sidebar():
             "🔗 Dependencies":
                 "What are the component dependencies and compatibility requirements?",
             "📋 Upgrade Plan":
-                "Generate a complete detailed upgrade project plan with all phases",
+                "Generate a complete detailed upgrade project plan with all phases and steps",
             "🌟 Best Practices":
                 "What are the best practices and SAP recommendations?",
             "⬇️ Downloads":
                 "Where can I download the software, patches, and documentation PDFs?",
         }
+
         for label, q in quick_questions.items():
-            if st.button(label, use_container_width=True,
-                         key=f"qbtn_{label[:6]}"):
+            if st.button(label, use_container_width=True, key=f"qbtn_{label[:6]}"):
                 st.session_state.quick_q = q
+                st.session_state.main_question = q
+                st.session_state.auto_search = True
                 st.rerun()
 
+        # ----------------------------------------------------
         # Recent Search History
+        # ----------------------------------------------------
         if st.session_state.search_history:
             st.markdown("---")
             st.markdown("**🕘 Recent Searches**")
             for h in reversed(st.session_state.search_history[-5:]):
-                st.caption(
-                    f"• {h[:38]}{'…' if len(h) > 38 else ''}"
-                )
+                st.caption(f"• {h[:38]}{'…' if len(h) > 38 else ''}")
 
+        # ----------------------------------------------------
         # Footer
+        # ----------------------------------------------------
         st.markdown("---")
         st.markdown(
             "<div style='font-size:.72rem;color:#6b7280;"
@@ -1954,22 +1972,22 @@ def render_sidebar():
 
 
 def render_header():
-    product    = st.session_state.current_product
-    mode_txt   = (
+    product = st.session_state.current_product
+    mode_txt = (
         "🤖 Gemini AI Active"
         if st.session_state.api_key
         else "📐 Rule-based Mode"
     )
     docs_count = len(st.session_state.fetched_docs)
-    qa_count   = len(st.session_state.conversation)
+    qa_count = len(st.session_state.conversation)
+
     st.markdown(
         f'<div class="main-header">'
         f'<h1>🔷 SAP Help Navigator Pro</h1>'
         f'<p>'
         f'Intelligent SAP Documentation Assistant &nbsp;·&nbsp; '
-        f'Product: <strong>'
-        f'{product or "Select a product in sidebar →"}'
-        f'</strong> &nbsp;·&nbsp; {mode_txt}'
+        f'Product: <strong>{product or "Select a product in sidebar →"}</strong>'
+        f' &nbsp;·&nbsp; {mode_txt}'
         f' &nbsp;·&nbsp; {docs_count} docs fetched'
         f' &nbsp;·&nbsp; {qa_count} Q&amp;A'
         f' &nbsp;·&nbsp; '
@@ -1983,6 +2001,7 @@ def render_header():
 
 # ============================================================
 # TAB 1 — SEARCH & ASK
+# FIXED: quick-question buttons now populate and auto-search
 # ============================================================
 def tab_search_and_ask(product: str):
     st.markdown("### 🔍 Search SAP Documentation & Ask Questions")
@@ -1994,12 +2013,22 @@ def tab_search_and_ask(product: str):
         unsafe_allow_html=True,
     )
 
+    # Ensure main_question exists
+    if "main_question" not in st.session_state:
+        st.session_state.main_question = ""
+
+    # If quick question was set from sidebar, load it into main field
+    if st.session_state.get("quick_q"):
+        st.session_state.main_question = st.session_state.quick_q
+        st.session_state.quick_q = ""
+
+    # Auto-search flag for quick buttons
+    auto_search = st.session_state.pop("auto_search", False)
+
     col_q, col_btn = st.columns([5, 1])
     with col_q:
-        default_q = st.session_state.pop("quick_q", "")
-        question  = st.text_input(
+        question = st.text_input(
             "Your question",
-            value=default_q,
             placeholder=(
                 "e.g. What are the prerequisites for upgrading "
                 "SAP S/4HANA 2022 to 2023?"
@@ -2008,12 +2037,17 @@ def tab_search_and_ask(product: str):
             label_visibility="collapsed",
         )
     with col_btn:
-        go = st.button("🔍 Search", type="primary",
-                       use_container_width=True)
+        go = st.button(
+            "🔍 Search",
+            type="primary",
+            use_container_width=True
+        )
 
-    # Suggestion pills
+    # --------------------------------------------------------
+    # Suggested Question Buttons in Main Area
+    # --------------------------------------------------------
     st.markdown("**💡 Suggested questions:**")
-    sugs = [
+    suggestions = [
         "Upgrade path ECC to S/4HANA",
         "HANA memory parameters",
         "SUM upgrade steps",
@@ -2021,14 +2055,19 @@ def tab_search_and_ask(product: str):
         "HANA backup best practices",
         "BTP setup and configuration",
     ]
-    sug_cols = st.columns(len(sugs))
-    for i, sug in enumerate(sugs):
+
+    sug_cols = st.columns(len(suggestions))
+    for i, sug in enumerate(suggestions):
         with sug_cols[i]:
             if st.button(sug, key=f"sug_{i}"):
-                st.session_state.quick_q = sug
+                st.session_state.main_question = sug
+                st.session_state.auto_search = True
                 st.rerun()
 
-    if go and question:
+    # --------------------------------------------------------
+    # Search execution
+    # --------------------------------------------------------
+    if (go or auto_search) and question:
         if question not in st.session_state.search_history:
             st.session_state.search_history.append(question)
 
@@ -2041,35 +2080,41 @@ def tab_search_and_ask(product: str):
                 url = res["url"]
                 if url not in st.session_state.doc_cache:
                     doc = extract_doc_content(url)
-                    st.session_state.doc_cache[url]    = doc
+                    st.session_state.doc_cache[url] = doc
                     st.session_state.fetched_docs[url] = doc
                 doc = st.session_state.doc_cache[url]
                 context += (
-                    f"\n\n=== SOURCE: {doc.get('title','')} ===\n"
-                    f"{doc.get('content','')[:3000]}"
+                    f"\n\n=== SOURCE: {doc.get('title', '')} ===\n"
+                    f"{doc.get('content', '')[:3000]}"
                 )
 
         with st.spinner("🤖 Generating answer…"):
             answer = get_ai_answer(
-                question, context,
-                st.session_state.api_key, product
+                question,
+                context,
+                st.session_state.api_key,
+                product,
             )
 
         st.session_state.conversation.append({
             "question": question,
-            "answer":   answer,
-            "sources":  results,
-            "product":  product,
+            "answer": answer,
+            "sources": results,
+            "product": product,
         })
 
         q_lower = question.lower()
         icon = next(
             (ic for kw, ic in [
-                ("upgrade","🔄"), ("prerequisite","✅"),
-                ("install","💾"), ("parameter","⚙️"),
-                ("depend","🔗"), ("best practice","🌟"),
-                ("download","⬇️"), ("plan","📋"),
-                ("hana","🗄️"),
+                ("upgrade", "🔄"),
+                ("prerequisite", "✅"),
+                ("install", "💾"),
+                ("parameter", "⚙️"),
+                ("depend", "🔗"),
+                ("best practice", "🌟"),
+                ("download", "⬇️"),
+                ("plan", "📋"),
+                ("hana", "🗄️"),
             ] if kw in q_lower),
             "📖",
         )
@@ -2085,26 +2130,26 @@ def tab_search_and_ask(product: str):
             for r in results[:6]:
                 st.markdown(
                     f'<div class="source-card">'
-                    f'<a href="{r["url"]}" target="_blank">'
-                    f'📄 {r["title"]}</a><br>'
+                    f'<a href="{r["url"]}" target="_blank">📄 {r["title"]}</a><br>'
                     f'<small style="color:#6b7280">'
-                    f'{r.get("description","")[:120]}</small><br>'
+                    f'{r.get("description", "")[:120]}'
+                    f'</small><br>'
                     f'<small style="color:#94a3b8">'
-                    f'Source: {r.get("source","SAP Help Portal")}'
-                    f' &nbsp;·&nbsp; '
-                    f'<a href="{r["url"]}" target="_blank" '
-                    f'style="color:#94a3b8">'
+                    f'Source: {r.get("source", "SAP Help Portal")} &nbsp;·&nbsp; '
+                    f'<a href="{r["url"]}" target="_blank" style="color:#94a3b8">'
                     f'{r["url"][:65]}…</a>'
                     f'</small>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
 
+        # Collect PDF links from fetched docs
         all_pdfs = list({
             pdf
             for doc in st.session_state.fetched_docs.values()
             for pdf in doc.get("pdf_links", [])
         })
+
         if all_pdfs:
             st.markdown("### 📥 PDF Documents Found")
             for pdf in all_pdfs[:6]:
@@ -2138,18 +2183,15 @@ def tab_document_viewer(product: str):
         )
     with col_btn:
         st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("📥 Fetch Document",
-                     use_container_width=True) and url_input:
+        if st.button("📥 Fetch Document", use_container_width=True) and url_input:
             with st.spinner("📄 Fetching document content…"):
                 doc = extract_doc_content(url_input)
                 st.session_state.fetched_docs[url_input] = doc
-                st.session_state.doc_cache[url_input]    = doc
+                st.session_state.doc_cache[url_input] = doc
             if doc.get("title"):
                 st.success(f"✅ Fetched: {doc['title'][:60]}")
             else:
-                st.warning(
-                    "⚠️ Document fetched but title not found. Check URL."
-                )
+                st.warning("⚠️ Document fetched but title not found. Check URL.")
 
     if not st.session_state.fetched_docs:
         st.markdown(
@@ -2163,8 +2205,7 @@ def tab_document_viewer(product: str):
     selected_url = st.selectbox(
         "Select a fetched document to view",
         list(st.session_state.fetched_docs.keys()),
-        format_func=lambda u:
-            st.session_state.fetched_docs[u].get("title", u)[:70],
+        format_func=lambda u: st.session_state.fetched_docs[u].get("title", u)[:70],
     )
     doc = st.session_state.fetched_docs[selected_url]
 
@@ -2173,8 +2214,7 @@ def tab_document_viewer(product: str):
         st.markdown(f"#### 📄 {doc.get('title', 'Document')}")
     with col_link:
         st.markdown(
-            f'<a href="{selected_url}" target="_blank">'
-            f'🔗 Open on SAP Help Portal</a>',
+            f'<a href="{selected_url}" target="_blank">🔗 Open on SAP Help Portal</a>',
             unsafe_allow_html=True,
         )
 
@@ -2203,8 +2243,8 @@ def tab_document_viewer(product: str):
             for pdf in doc["pdf_links"][:5]:
                 fn = pdf.split("/")[-1]
                 st.markdown(
-                    f'<a href="{pdf}" target="_blank" '
-                    f'style="font-size:.82rem">📕 {fn[:30]}</a>',
+                    f'<a href="{pdf}" target="_blank" style="font-size:.82rem">'
+                    f'📕 {fn[:30]}</a>',
                     unsafe_allow_html=True,
                 )
 
@@ -2215,6 +2255,7 @@ def tab_document_viewer(product: str):
         placeholder="e.g. What installation steps are described here?",
         key="doc_specific_question",
     )
+
     if st.button("💬 Get Answer", key="doc_ask_btn") and doc_question:
         with st.spinner("Generating answer from document content…"):
             doc_answer = get_ai_answer(
@@ -2223,20 +2264,23 @@ def tab_document_viewer(product: str):
                 st.session_state.api_key,
                 product,
             )
+
         st.markdown(
             f'<div class="answer-box">{doc_answer}</div>',
             unsafe_allow_html=True,
         )
+
         st.session_state.conversation.append({
             "question": doc_question,
-            "answer":   doc_answer,
-            "sources":  [{
-                "title":       doc.get("title", ""),
-                "url":         selected_url,
+            "answer": doc_answer,
+            "sources": [{
+                "title": doc.get("title", ""),
+                "url": selected_url,
                 "description": "",
             }],
-            "product":  product,
+            "product": product,
         })
+
 # ============================================================
 # PART 5 OF 6 — Tab3 Upgrade Planner, Tab4 Matrix,
 #                Tab5 Parameters, Tab6 Checklist
