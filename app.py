@@ -3712,6 +3712,1778 @@ def main():
         tab_resources()
 
 
+# ============================================================
+# PART 7 — EXTRA FEATURES EXTENSION
+# Add to app.py after Part 6
+# New Tabs:
+#   - SUM Phase Monitor
+#   - HANA Health Check SQL Library
+#   - Transaction Finder
+#   - Sizing Calculator
+#   - Release Calendar
+#   - Batch Q&A
+#   - Landscape Visualizer
+# ============================================================
+
+# ============================================================
+# DATA — SUM PHASES
+# ============================================================
+SUM_PHASES = {
+    "MAIN_SHDIMP": {
+        "order": 1,
+        "label": "Shadow Import",
+        "desc": "Imports ABAP objects into shadow repository. Longest phase.",
+        "duration_pct": 35,
+        "is_downtime": False,
+        "tips": [
+            "Longest phase — ensure stable DB connection throughout",
+            "Monitor SM21 for short dumps and errors",
+            "Do not restart SUM or the system during this phase",
+            "Verify tablespace free space is at least 50 percent before start",
+            "Keep monitoring disk space on /usr/sap and DB data volumes",
+        ],
+        "errors": [
+            ("TSK: IMPORT_MONITOR_SHADOW",
+             "DDIC activation failure — check SE11 for locked or invalid objects"),
+            ("ORA-01652",
+             "Temp tablespace full — extend PSAPTEMP tablespace"),
+            ("R3trans return code 8",
+             "Transport import error — review tp log in SUM log directory"),
+            ("Timeout in phase",
+             "Increase rdisp/max_wprun_time in RZ10 temporarily"),
+            ("DBIF_RSQL_INVALID_RSQL",
+             "DB issue — check DBACOCKPIT for alerts"),
+        ],
+    },
+    "MAIN_NEWBAS": {
+        "order": 2,
+        "label": "New Basis",
+        "desc": "Activates new Basis software stack and kernel.",
+        "duration_pct": 10,
+        "is_downtime": False,
+        "tips": [
+            "System briefly restarts during kernel switch",
+            "Verify kernel files are correctly staged in download directory",
+            "Check OS user permissions on kernel executables",
+            "Validate stack.xml matches downloaded files",
+        ],
+        "errors": [
+            ("Signal 11 or Segfault",
+             "Corrupt kernel binary — re-download from SWDC and re-stage"),
+            ("disp+work crash on start",
+             "Stack XML mismatch — regenerate via Maintenance Planner"),
+        ],
+    },
+    "MAIN_SPAU_SHADOW": {
+        "order": 3,
+        "label": "SPAU Shadow",
+        "desc": "Repository modification adjustments in shadow system.",
+        "duration_pct": 5,
+        "is_downtime": False,
+        "tips": [
+            "Perform SPAU adjustments within the shadow system client",
+            "Reset-to-original is safest default action for most objects",
+            "Document each adjusted object for post-upgrade review",
+            "All adjustments here run in uptime — no impact to production",
+        ],
+        "errors": [
+            ("Objects locked in shadow system",
+             "Release locks via SM12 in the shadow client"),
+        ],
+    },
+    "MAIN_UPG": {
+        "order": 4,
+        "label": "Upgrade Switch",
+        "desc": "Main downtime phase. Switches production to new release.",
+        "duration_pct": 20,
+        "is_downtime": True,
+        "tips": [
+            "This marks the start of planned downtime — lock all users first",
+            "Keep monitoring server load via SM50 and SM66",
+            "Do not interrupt — rollback not possible after this point",
+            "Expected duration 2 to 8 hours depending on system size",
+            "Keep DBA and OS admin on standby throughout",
+        ],
+        "errors": [
+            ("DDIC_NAMETAB activation error",
+             "Check SE14 for invalid or inconsistent tables"),
+            ("Enqueue server crash",
+             "Restart enqueue work process and resume SUM"),
+            ("ABAP short dump in SPDD",
+             "Fix the SPDD object manually and re-run the SUM step"),
+            ("Job RDDIMPDP not started",
+             "Start job manually via SM37 and resume SUM"),
+        ],
+    },
+    "MAIN_POST": {
+        "order": 5,
+        "label": "Post Processing",
+        "desc": "Activates objects and runs post-upgrade programs.",
+        "duration_pct": 20,
+        "is_downtime": True,
+        "tips": [
+            "System is technically upgraded — still in maintenance mode",
+            "SPAU adjustments can continue in parallel during this phase",
+            "Run RUTPOADAPT manually if SUM skips or it fails",
+            "Check SM21 frequently for errors during object activation",
+        ],
+        "errors": [
+            ("ACTIVATE_OBJECTS timeout",
+             "Extend rdisp/max_wprun_time in RZ10 temporarily"),
+            ("POST_UPGRADE_JOBS failure",
+             "Check job log in SM37 and manually restart failed jobs"),
+        ],
+    },
+    "MAIN_CLEANUP": {
+        "order": 6,
+        "label": "Cleanup",
+        "desc": "Removes shadow repository and temporary upgrade objects.",
+        "duration_pct": 10,
+        "is_downtime": False,
+        "tips": [
+            "Do not cancel — incomplete cleanup leaves orphan shadow objects",
+            "Verify shadow tables are removed in SE16N after completion",
+            "Re-enable background jobs and batch processing after this phase",
+            "Check disk space is recovered after shadow repo deletion",
+        ],
+        "errors": [
+            ("Shadow tables not deleted",
+             "Run report SHADOW_SYSTEM_CLEANUP manually via SE38"),
+        ],
+    },
+}
+
+# ============================================================
+# DATA — HANA HEALTH CHECKS
+# ============================================================
+HANA_HEALTH_CHECKS = {
+    "Memory": [
+        {
+            "name": "Global Allocation Limit",
+            "severity": "Critical",
+            "sql": (
+                "SELECT HOST, "
+                "ROUND(ALLOCATION_LIMIT/1024/1024/1024,1) AS LIMIT_GB, "
+                "ROUND(USED_PHYSICAL_MEMORY/1024/1024/1024,1) AS USED_GB, "
+                "ROUND(FREE_PHYSICAL_MEMORY/1024/1024/1024,1) AS FREE_GB "
+                "FROM M_HOST_RESOURCE_UTILIZATION;"
+            ),
+            "note": "1999997",
+            "desc": "Check overall HANA memory allocation and usage",
+        },
+        {
+            "name": "Out of Memory Events (last 7 days)",
+            "severity": "Critical",
+            "sql": (
+                "SELECT COUNT(*) AS OOM_COUNT "
+                "FROM M_OUT_OF_MEMORY_EVENTS "
+                "WHERE TIMESTAMP > ADD_DAYS(NOW(), -7);"
+            ),
+            "note": "2041874",
+            "desc": "Count OOM events — any value above zero needs investigation",
+        },
+        {
+            "name": "Top Memory Consumers",
+            "severity": "High",
+            "sql": (
+                "SELECT TOP 10 COMPONENT, "
+                "ROUND(INCLUSIVE_SIZE_IN_USE/1024/1024,1) AS HEAP_MB "
+                "FROM M_HEAP_MEMORY "
+                "ORDER BY INCLUSIVE_SIZE_IN_USE DESC;"
+            ),
+            "note": "",
+            "desc": "Identify top heap memory consumers by component",
+        },
+        {
+            "name": "Column Store Memory by Table",
+            "severity": "Medium",
+            "sql": (
+                "SELECT TOP 15 SCHEMA_NAME, TABLE_NAME, "
+                "ROUND(MEMORY_SIZE_IN_CURRENT/1024/1024,1) AS MEM_MB, "
+                "RECORD_COUNT "
+                "FROM M_CS_TABLES "
+                "ORDER BY MEMORY_SIZE_IN_CURRENT DESC;"
+            ),
+            "note": "",
+            "desc": "Find largest column store tables in memory",
+        },
+    ],
+    "Performance": [
+        {
+            "name": "Currently Running Statements",
+            "severity": "High",
+            "sql": (
+                "SELECT TOP 10 "
+                "CONNECTION_ID, "
+                "USER_NAME, "
+                "ROUND(DURATION_MICROSEC/1000000,1) AS DURATION_SEC, "
+                "SUBSTRING(STATEMENT_STRING,1,100) AS SQL_PREVIEW "
+                "FROM M_ACTIVE_STATEMENTS "
+                "WHERE DURATION_MICROSEC > 30000000 "
+                "ORDER BY DURATION_MICROSEC DESC;"
+            ),
+            "note": "",
+            "desc": "Find statements running longer than 30 seconds",
+        },
+        {
+            "name": "Expensive Statements Cache (last 24h)",
+            "severity": "Medium",
+            "sql": (
+                "SELECT TOP 10 "
+                "ROUND(AVG_EXECUTION_TIME/1000000,2) AS AVG_SEC, "
+                "EXECUTION_COUNT, "
+                "SUBSTRING(STATEMENT_STRING,1,120) AS SQL_PREVIEW "
+                "FROM M_SQL_PLAN_CACHE "
+                "WHERE LAST_EXECUTION_TIMESTAMP > ADD_DAYS(NOW(),-1) "
+                "ORDER BY AVG_EXECUTION_TIME DESC;"
+            ),
+            "note": "",
+            "desc": "Review historically expensive SQL from plan cache",
+        },
+        {
+            "name": "Delta Merge Pending Tables",
+            "severity": "High",
+            "sql": (
+                "SELECT SCHEMA_NAME, TABLE_NAME, "
+                "DELTA_RECORD_COUNT, MAIN_RECORD_COUNT "
+                "FROM M_CS_TABLES "
+                "WHERE DELTA_RECORD_COUNT > 500000 "
+                "ORDER BY DELTA_RECORD_COUNT DESC;"
+            ),
+            "note": "2057046",
+            "desc": "Tables with large delta store requiring merge",
+        },
+        {
+            "name": "Service Response Times",
+            "severity": "Medium",
+            "sql": (
+                "SELECT HOST, PORT, SERVICE_NAME, "
+                "ROUND(RESPONSE_TIME/1000,1) AS RESP_MS "
+                "FROM M_SERVICE_STATISTICS "
+                "ORDER BY RESPONSE_TIME DESC;"
+            ),
+            "note": "",
+            "desc": "Check service-level response times",
+        },
+    ],
+    "Backup": [
+        {
+            "name": "Last Full Data Backup",
+            "severity": "Critical",
+            "sql": (
+                "SELECT TOP 1 "
+                "BACKUP_ID, SYS_START_TIME, BACKUP_TYPE, STATE, "
+                "ROUND(BACKUP_SIZE/1024/1024/1024,2) AS SIZE_GB "
+                "FROM M_BACKUP_CATALOG "
+                "WHERE BACKUP_TYPE = 'complete data backup' "
+                "ORDER BY SYS_START_TIME DESC;"
+            ),
+            "note": "1975256",
+            "desc": "Verify last full backup completed successfully",
+        },
+        {
+            "name": "Last Log Backup",
+            "severity": "Critical",
+            "sql": (
+                "SELECT TOP 1 "
+                "SYS_START_TIME, STATE, "
+                "ROUND(BACKUP_SIZE/1024/1024,1) AS SIZE_MB "
+                "FROM M_BACKUP_CATALOG "
+                "WHERE BACKUP_TYPE = 'log backup' "
+                "ORDER BY SYS_START_TIME DESC;"
+            ),
+            "note": "1975256",
+            "desc": "Verify log backups are running on schedule",
+        },
+        {
+            "name": "Backup Size Trend (last 30 days)",
+            "severity": "Low",
+            "sql": (
+                "SELECT "
+                "TO_DATE(SYS_START_TIME) AS BACKUP_DATE, "
+                "BACKUP_TYPE, "
+                "ROUND(SUM(BACKUP_SIZE)/1024/1024/1024,2) AS TOTAL_GB "
+                "FROM M_BACKUP_CATALOG "
+                "WHERE SYS_START_TIME > ADD_DAYS(NOW(),-30) "
+                "GROUP BY TO_DATE(SYS_START_TIME), BACKUP_TYPE "
+                "ORDER BY BACKUP_DATE DESC;"
+            ),
+            "note": "",
+            "desc": "Review backup size trend over last 30 days",
+        },
+    ],
+    "Replication": [
+        {
+            "name": "System Replication Status",
+            "severity": "Critical",
+            "sql": (
+                "SELECT SITE_ID, HOST, SITE_NAME, "
+                "REPLICATION_STATUS, FULL_SYNC, REPLICATION_MODE "
+                "FROM M_SERVICE_REPLICATION;"
+            ),
+            "note": "1999880",
+            "desc": "Check HSR replication status and mode",
+        },
+        {
+            "name": "Replication Lag",
+            "severity": "High",
+            "sql": (
+                "SELECT SITE_ID, "
+                "SECONDARY_RECONNECT_COUNT AS RECONNECTS, "
+                "SECONDARY_FAILOVER_COUNT AS FAILOVERS, "
+                "REPLICATION_MODE "
+                "FROM M_SERVICE_REPLICATION;"
+            ),
+            "note": "1999880",
+            "desc": "Monitor reconnect and failover counts",
+        },
+    ],
+    "Disk and Services": [
+        {
+            "name": "Service Status",
+            "severity": "Critical",
+            "sql": (
+                "SELECT HOST, PORT, SERVICE_NAME, "
+                "ACTIVE_STATUS, PROCESS_ID "
+                "FROM M_SERVICES "
+                "WHERE ACTIVE_STATUS != 'YES';"
+            ),
+            "note": "",
+            "desc": "Check for any non-active HANA services",
+        },
+        {
+            "name": "Disk Usage by Volume",
+            "severity": "High",
+            "sql": (
+                "SELECT VOLUME_ID, DEVICE_NAME, "
+                "ROUND(USED_SIZE/1024/1024/1024,1) AS USED_GB, "
+                "ROUND(TOTAL_SIZE/1024/1024/1024,1) AS TOTAL_GB, "
+                "ROUND(100*USED_SIZE/TOTAL_SIZE,1) AS USED_PCT "
+                "FROM M_DISK_USAGE "
+                "ORDER BY USED_PCT DESC;"
+            ),
+            "note": "",
+            "desc": "Check disk usage across all HANA volumes",
+        },
+        {
+            "name": "HANA Version and Patch Level",
+            "severity": "Low",
+            "sql": (
+                "SELECT VERSION, PATCH_NUMBER, "
+                "BUILD_ID, BUILD_TYPE "
+                "FROM M_DATABASE;"
+            ),
+            "note": "",
+            "desc": "Display current HANA version and patch level",
+        },
+    ],
+}
+
+# ============================================================
+# DATA — TRANSACTION REFERENCE
+# ============================================================
+TRANSACTION_REFERENCE = {
+    "Performance Monitoring": {
+        "SM50":  {"desc": "Work Process Overview",
+                  "use": "Monitor active, waiting, and sleeping WPs on current instance"},
+        "SM66":  {"desc": "Global Work Process Overview",
+                  "use": "WP status across all instances in the landscape"},
+        "ST05":  {"desc": "SQL and Performance Trace",
+                  "use": "Trace DB calls, RFC, enqueue — identify slow queries"},
+        "ST12":  {"desc": "ABAP CPU Trace",
+                  "use": "CPU profiling for ABAP programs and function modules"},
+        "ST02":  {"desc": "Buffer Statistics",
+                  "use": "Monitor buffer hit rates — tune when swap rate exceeds 1 percent"},
+        "ST04":  {"desc": "Database Performance Monitor",
+                  "use": "DB-level statistics, expensive SQL, wait events"},
+        "STAD":  {"desc": "Statistics Records",
+                  "use": "Historical dialog, RFC, and batch transaction response times"},
+        "AL08":  {"desc": "Active Users All Instances",
+                  "use": "Current users and WP usage across all instances"},
+    },
+    "System Administration": {
+        "SM21":  {"desc": "System Log",
+                  "use": "ABAP runtime errors, restarts, login failures"},
+        "SM37":  {"desc": "Background Job Monitor",
+                  "use": "Check, cancel, restart scheduled batch jobs"},
+        "SM12":  {"desc": "Lock Entry Monitor",
+                  "use": "View and release enqueue locks"},
+        "SM13":  {"desc": "Update Process Monitor",
+                  "use": "Monitor and retry failed update records"},
+        "SM04":  {"desc": "User Overview",
+                  "use": "Active logged-on users, force logoff"},
+        "SM58":  {"desc": "tRFC Monitor",
+                  "use": "Transactional RFC queue status and error handling"},
+        "SM59":  {"desc": "RFC Destinations",
+                  "use": "Configure and test RFC connections"},
+        "SMGW":  {"desc": "Gateway Monitor",
+                  "use": "SAP Gateway connections and security settings"},
+    },
+    "Basis Configuration": {
+        "RZ10":  {"desc": "Profile Maintenance",
+                  "use": "Edit instance and default profile parameters"},
+        "RZ11":  {"desc": "Profile Parameter Documentation",
+                  "use": "View parameter description, valid values, and notes"},
+        "RZ20":  {"desc": "CCMS Alert Monitor",
+                  "use": "Central system monitoring and alert management"},
+        "SMLG":  {"desc": "Logon Load Balancing",
+                  "use": "Manage logon groups for WP distribution"},
+        "DBACOCKPIT": {"desc": "DBA Cockpit",
+                       "use": "Full database administration from ABAP layer"},
+        "SCC4":  {"desc": "Client Administration",
+                  "use": "Manage SAP clients and logon settings"},
+    },
+    "Transport and Changes": {
+        "STMS":  {"desc": "Transport Management System",
+                  "use": "Import queue, transport routes, landscape config"},
+        "SE10":  {"desc": "Transport Organizer",
+                  "use": "Create, release, and manage transport requests"},
+        "SE01":  {"desc": "Transport Organizer Extended",
+                  "use": "Full transport management with extended options"},
+        "SCC8":  {"desc": "Client Export",
+                  "use": "Export client data to a transport request"},
+    },
+    "Upgrade and Patching": {
+        "SPAM":  {"desc": "Support Package Manager",
+                  "use": "Apply Support Packages to ABAP stack"},
+        "SAINT": {"desc": "Add-On Installation Tool",
+                  "use": "Install and upgrade SAP add-ons and industry solutions"},
+        "SPDD":  {"desc": "Data Dictionary Adjustments",
+                  "use": "Adjust custom DDIC objects during and after upgrade"},
+        "SPAU":  {"desc": "Repository Object Adjustments",
+                  "use": "Merge custom modifications after upgrade"},
+        "SCMA":  {"desc": "Custom Code Migration Analysis",
+                  "use": "Analyze custom code for upgrade compatibility"},
+        "/SDF/RC_START_CHECK": {
+            "desc": "SAP Readiness Check",
+            "use": "Run pre-upgrade readiness check for S/4HANA"},
+    },
+    "Security and Authorizations": {
+        "SU01":  {"desc": "User Maintenance",
+                  "use": "Create, lock, unlock, and modify SAP users"},
+        "SU10":  {"desc": "Mass User Maintenance",
+                  "use": "Bulk operations on multiple users"},
+        "PFCG":  {"desc": "Role Maintenance",
+                  "use": "Create and manage authorization roles"},
+        "SU24":  {"desc": "Authorization Object Maintenance",
+                  "use": "Maintain auth objects per transaction"},
+        "SU25":  {"desc": "Upgrade Tool for Auth Profiles",
+                  "use": "Post-upgrade authorization profile regeneration"},
+        "SM19":  {"desc": "Security Audit Configuration",
+                  "use": "Configure Security Audit Log filters and clients"},
+        "SM20":  {"desc": "Security Audit Log Analysis",
+                  "use": "Analyze and review security audit events"},
+        "RSUSR002": {"desc": "User Authorization Query",
+                     "use": "Find users with specific authorization object values"},
+    },
+    "Database Administration": {
+        "DBACOCKPIT": {"desc": "DBA Cockpit",
+                       "use": "Full HANA and DB administration from ABAP"},
+        "DB02":  {"desc": "DB Performance Monitor",
+                  "use": "Missing indexes, space overview, DB statistics"},
+        "DB13":  {"desc": "DBA Planning Calendar",
+                  "use": "Schedule DB backups and statistics updates"},
+        "DB20":  {"desc": "Update DB Table Statistics",
+                  "use": "Manually trigger optimizer statistics update"},
+        "ST22":  {"desc": "ABAP Runtime Error Dump",
+                  "use": "Analyze short dumps and runtime exceptions"},
+    },
+}
+
+# ============================================================
+# DATA — SAP RELEASE CALENDAR
+# ============================================================
+SAP_RELEASES = {
+    "SAP S/4HANA": [
+        {"release": "S/4HANA 1511", "ga": "2015-11-01", "end": "2023-12-31"},
+        {"release": "S/4HANA 1610", "ga": "2016-10-01", "end": "2024-12-31"},
+        {"release": "S/4HANA 1709", "ga": "2017-09-01", "end": "2025-12-31"},
+        {"release": "S/4HANA 1809", "ga": "2018-09-01", "end": "2026-12-31"},
+        {"release": "S/4HANA 1909", "ga": "2019-09-01", "end": "2027-12-31"},
+        {"release": "S/4HANA 2020", "ga": "2020-10-01", "end": "2028-12-31"},
+        {"release": "S/4HANA 2021", "ga": "2021-10-01", "end": "2029-12-31"},
+        {"release": "S/4HANA 2022", "ga": "2022-10-01", "end": "2030-12-31"},
+        {"release": "S/4HANA 2023", "ga": "2023-10-01", "end": "2031-12-31"},
+        {"release": "S/4HANA 2024", "ga": "2024-10-01", "end": "2032-12-31"},
+    ],
+    "SAP ECC": [
+        {"release": "ECC 6.0 EHP0", "ga": "2005-01-01", "end": "2025-12-31"},
+        {"release": "ECC 6.0 EHP7", "ga": "2013-01-01", "end": "2027-12-31"},
+        {"release": "ECC 6.0 EHP8", "ga": "2016-01-01", "end": "2027-12-31"},
+    ],
+    "SAP HANA": [
+        {"release": "HANA 1.0 SPS12", "ga": "2017-01-01", "end": "2023-12-31"},
+        {"release": "HANA 2.0 SPS04", "ga": "2019-06-01", "end": "2024-12-31"},
+        {"release": "HANA 2.0 SPS05", "ga": "2020-06-01", "end": "2025-12-31"},
+        {"release": "HANA 2.0 SPS06", "ga": "2021-09-01", "end": "2026-12-31"},
+        {"release": "HANA 2.0 SPS07", "ga": "2022-10-01", "end": "2027-12-31"},
+    ],
+    "SAP NetWeaver": [
+        {"release": "NetWeaver 7.4", "ga": "2013-01-01", "end": "2025-12-31"},
+        {"release": "NetWeaver 7.5", "ga": "2015-01-01", "end": "2027-12-31"},
+        {"release": "ABAP Platform 1909", "ga": "2019-09-01", "end": "2027-12-31"},
+        {"release": "ABAP Platform 2022", "ga": "2022-10-01", "end": "2030-12-31"},
+    ],
+}
+
+# ============================================================
+# TAB — SUM PHASE MONITOR
+# ============================================================
+def tab_sum_monitor():
+    st.markdown("### 🔧 SUM Phase Monitor & Troubleshooting Guide")
+    st.markdown(
+        '<div class="info-box">Reference guide for all SUM phases, '
+        'estimated durations, monitoring tips, common errors, '
+        'and rollback decision framework.</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Phase overview bar
+    st.markdown("#### 📊 SUM Phase Timeline")
+    phase_colors = [
+        "#0057A8", "#00A3E0", "#0096C7",
+        "#dc2626", "#d97706", "#16a34a",
+    ]
+    phase_list = list(SUM_PHASES.values())
+    cols = st.columns(len(phase_list))
+    for i, phase in enumerate(phase_list):
+        with cols[i]:
+            bg = "#fee2e2" if phase["is_downtime"] else phase_colors[i]
+            badge = "⚠️ DOWNTIME" if phase["is_downtime"] else "✅ Uptime"
+            st.markdown(
+                f'<div style="background:{bg};color:#fff;border-radius:10px;'
+                f'padding:.6rem .4rem;text-align:center;font-size:.76rem;'
+                f'font-weight:600;min-height:80px">'
+                f'Phase {phase["order"]}<br>'
+                f'<strong>{phase["label"]}</strong><br>'
+                f'~{phase["duration_pct"]}%<br>'
+                f'<span style="font-size:.68rem">{badge}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Phase detail expanders
+    st.markdown("#### 🔍 Phase Detail & Troubleshooting")
+    for key, phase in SUM_PHASES.items():
+        downtime_flag = "⚠️ DOWNTIME PHASE" if phase["is_downtime"] else "✅ Runs in Uptime"
+        with st.expander(
+            f"Phase {phase['order']}: {phase['label']} "
+            f"(~{phase['duration_pct']}% of total)  |  {downtime_flag}",
+            expanded=(phase["order"] == 1),
+        ):
+            st.markdown(f"**Description:** {phase['desc']}")
+
+            col_tips, col_errors = st.columns(2)
+            with col_tips:
+                st.markdown("**✅ Monitoring Tips**")
+                for tip in phase["tips"]:
+                    st.markdown(
+                        f'<div style="background:#f0fdf4;border-left:3px solid #16a34a;'
+                        f'padding:.4rem .8rem;margin:.3rem 0;border-radius:0 6px 6px 0;'
+                        f'font-size:.87rem">✅ {tip}</div>',
+                        unsafe_allow_html=True,
+                    )
+            with col_errors:
+                st.markdown("**❌ Common Errors & Resolutions**")
+                for err, fix in phase["errors"]:
+                    st.markdown(
+                        f'<div style="background:#fef2f2;border-left:3px solid #dc2626;'
+                        f'padding:.5rem .8rem;margin:.3rem 0;border-radius:0 6px 6px 0;'
+                        f'font-size:.86rem">'
+                        f'<strong>❌ {err}</strong><br>'
+                        f'<span style="color:#374151">→ {fix}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+    # SUM command reference
+    st.markdown("---")
+    st.markdown("#### 💻 SUM Command Reference")
+
+    commands = [
+        ("Start SUM normal",         "./STARTUP",
+         "Begin the SUM upgrade process"),
+        ("Start SUM extract only",   "./STARTUP EXTRACTONLY",
+         "Pre-check only — no changes made to system"),
+        ("Start SUM without GUI",    "./STARTUP GuiServer=false",
+         "Headless mode for scripted execution"),
+        ("Windows start",            "STARTUP.BAT",
+         "Start SUM on Windows Server"),
+        ("SUM Web UI URL",           "https://host:1129/lmsl/sumabap/SID/doc/",
+         "Monitor SUM from browser during execution"),
+        ("SUM log location Linux",   "/usr/sap/SID/SUM/abap/log/",
+         "Phase logs and error traces"),
+        ("Resume after error",       "./STARTUP",
+         "SUM always resumes from last saved checkpoint"),
+        ("Check SUM version",        "cat /usr/sap/SID/SUM/SUMVERSION",
+         "Verify SUM version before starting upgrade"),
+    ]
+
+    rows = ""
+    for i, (action, cmd, note) in enumerate(commands):
+        bg = "#f8fafc" if i % 2 == 0 else "#fff"
+        rows += (
+            f'<tr style="background:{bg}">'
+            f'<td style="padding:7px 14px;border:1px solid #e5e7eb">{action}</td>'
+            f'<td style="padding:7px 14px;border:1px solid #e5e7eb;'
+            f'font-family:monospace;color:#0057A8;font-size:.84rem">{cmd}</td>'
+            f'<td style="padding:7px 14px;border:1px solid #e5e7eb;'
+            f'font-size:.84rem;color:#374151">{note}</td>'
+            f'</tr>'
+        )
+
+    st.markdown(
+        f'<table style="width:100%;border-collapse:collapse;font-size:.875rem">'
+        f'<thead><tr style="background:#1e293b;color:#fff">'
+        f'<th style="padding:9px 14px;text-align:left">Action</th>'
+        f'<th style="padding:9px 14px;text-align:left">Command</th>'
+        f'<th style="padding:9px 14px;text-align:left">Notes</th>'
+        f'</tr></thead><tbody>{rows}</tbody></table>',
+        unsafe_allow_html=True,
+    )
+
+    # Rollback framework
+    st.markdown("---")
+    st.markdown("#### 🔄 Rollback Decision Framework")
+    st.markdown(
+        '<div class="warn-box">⚠️ Rollback is only technically possible '
+        'BEFORE Phase 4 (MAIN_UPG). Once MAIN_UPG starts, '
+        'the system is past the point of no return. '
+        'A full database restore is the only recovery option.</div>',
+        unsafe_allow_html=True,
+    )
+
+    rollback_data = [
+        ("Before MAIN_SHDIMP",  "✅ Safe",      "#f0fdf4", "#16a34a",
+         "Cancel SUM. System is completely unchanged."),
+        ("During MAIN_SHDIMP",  "✅ Safe",      "#f0fdf4", "#16a34a",
+         "Cancel SUM. Delete shadow repository. System unchanged."),
+        ("During SPAU Shadow",  "✅ Safe",      "#f0fdf4", "#16a34a",
+         "Cancel SUM. Clean up shadow. No production impact."),
+        ("MAIN_UPG Start",      "❌ NOT POSSIBLE", "#fef2f2", "#dc2626",
+         "Downtime has started. Must complete or restore from backup."),
+        ("During MAIN_UPG",     "❌ NOT POSSIBLE", "#fef2f2", "#dc2626",
+         "Only option is full database restore from pre-upgrade backup."),
+        ("After MAIN_UPG",      "❌ NOT POSSIBLE", "#fef2f2", "#dc2626",
+         "Full DB restore only. Significant additional downtime required."),
+    ]
+
+    rb_cols = st.columns(3)
+    for i, (phase, status, bg, tc, action) in enumerate(rollback_data):
+        with rb_cols[i % 3]:
+            st.markdown(
+                f'<div style="background:{bg};border-radius:8px;'
+                f'padding:.7rem 1rem;margin:.4rem 0;'
+                f'border:1px solid {"#bbf7d0" if "Safe" in status else "#fecaca"}">'
+                f'<strong style="font-size:.84rem">{phase}</strong><br>'
+                f'<span style="font-weight:700;color:{tc}">{status}</span><br>'
+                f'<small style="color:#374151">{action}</small>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+
+# ============================================================
+# TAB — HANA HEALTH CHECK SQL
+# ============================================================
+def tab_hana_health():
+    st.markdown("### 🗄️ SAP HANA Health Check SQL Library")
+    st.markdown(
+        '<div class="info-box">Ready-to-run HANA SQL statements '
+        'organized by category. Copy and run in SAP HANA Studio, '
+        'HANA Cockpit, or DBACOCKPIT (DB02 / SQL Editor).</div>',
+        unsafe_allow_html=True,
+    )
+
+    categories = list(HANA_HEALTH_CHECKS.keys())
+    sel_cats = st.multiselect(
+        "Select check categories to display",
+        categories,
+        default=categories,
+        key="hana_cats",
+    )
+
+    sev_filter = st.selectbox(
+        "Filter by severity",
+        ["All", "Critical", "High", "Medium", "Low"],
+        key="hana_sev",
+    )
+
+    all_sql_export = [
+        "-- SAP HANA Health Check SQL Script",
+        f"-- Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        "-- Run as: SYSTEM or user with SELECT on M_* views",
+        "",
+    ]
+
+    for cat in sel_cats:
+        checks = HANA_HEALTH_CHECKS.get(cat, [])
+        if sev_filter != "All":
+            checks = [c for c in checks if c["severity"] == sev_filter]
+        if not checks:
+            continue
+
+        st.markdown(f"---\n#### 🗄️ {cat} ({len(checks)} checks)")
+        all_sql_export.append(f"\n-- ===== {cat.upper()} =====")
+
+        for chk in checks:
+            sev_bg = {
+                "Critical": "#fee2e2",
+                "High":     "#fef3c7",
+                "Medium":   "#dbeafe",
+                "Low":      "#f0fdf4",
+            }.get(chk["severity"], "#f8fafc")
+            sev_tc = {
+                "Critical": "#dc2626",
+                "High":     "#d97706",
+                "Medium":   "#2563eb",
+                "Low":      "#16a34a",
+            }.get(chk["severity"], "#374151")
+            sev_dot = {
+                "Critical": "🔴",
+                "High":     "🟡",
+                "Medium":   "🔵",
+                "Low":      "🟢",
+            }.get(chk["severity"], "⚪")
+
+            note_link = (
+                f'<a href="https://launchpad.support.sap.com/#/notes/{chk["note"]}" '
+                f'target="_blank">📋 SAP Note {chk["note"]}</a>'
+            ) if chk.get("note") else ""
+
+            with st.expander(
+                f"{sev_dot} {chk['name']} [{chk['severity']}]"
+            ):
+                st.markdown(
+                    f'<div style="background:{sev_bg};border-radius:8px;'
+                    f'padding:.5rem 1rem;margin-bottom:.5rem">'
+                    f'<strong style="color:{sev_tc}">Severity: {chk["severity"]}</strong>'
+                    f'{"&nbsp;&nbsp;·&nbsp;&nbsp;" + note_link if note_link else ""}'
+                    f'<br><small>{chk["desc"]}</small>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                st.code(chk["sql"], language="sql")
+
+            all_sql_export.append(f"\n-- {chk['name']} [{chk['severity']}]")
+            if chk.get("note"):
+                all_sql_export.append(f"-- SAP Note: {chk['note']}")
+            all_sql_export.append(chk["sql"])
+
+    st.markdown("---")
+    st.download_button(
+        label="⬇️ Download Full SQL Health Check Script (.sql)",
+        data="\n".join(all_sql_export),
+        file_name=(
+            f"hana_health_checks_"
+            f"{datetime.datetime.now().strftime('%Y%m%d')}.sql"
+        ),
+        mime="text/plain",
+        use_container_width=True,
+    )
+
+    # HANA Mini Checks reference
+    st.markdown("---")
+    st.markdown("#### 🔬 SAP HANA Mini Checks")
+    st.markdown(
+        '<div class="info-box">📋 SAP Note '
+        '<a href="https://launchpad.support.sap.com/#/notes/1999993" '
+        'target="_blank">1999993</a> contains the official HANA Mini '
+        'Checks SQL script. Run this monthly on all production HANA '
+        'systems. Download the attachment from the SAP Note directly.</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# TAB — TRANSACTION FINDER
+# ============================================================
+def tab_transaction_finder():
+    st.markdown("### 🔎 SAP Transaction Code Finder")
+    st.markdown(
+        '<div class="info-box">Search for SAP transaction codes '
+        'by name, description, or category. Find the right transaction '
+        'for upgrades, performance, security, and administration tasks.</div>',
+        unsafe_allow_html=True,
+    )
+
+    col_s, col_f = st.columns([3, 1])
+    with col_s:
+        tx_search = st.text_input(
+            "Search transactions",
+            placeholder="e.g. performance, upgrade, user, backup, SM50…",
+            key="tx_search",
+        )
+    with col_f:
+        all_cats = list(TRANSACTION_REFERENCE.keys())
+        tx_cat   = st.selectbox("Filter Category",
+                                 ["All"] + all_cats, key="tx_cat")
+
+    # Build flat list
+    all_tx = []
+    for cat, txns in TRANSACTION_REFERENCE.items():
+        for code, info in txns.items():
+            all_tx.append({
+                "code": code,
+                "desc": info["desc"],
+                "use":  info["use"],
+                "cat":  cat,
+            })
+
+    # Apply filters
+    filtered = all_tx
+    if tx_cat != "All":
+        filtered = [t for t in filtered if t["cat"] == tx_cat]
+    if tx_search:
+        sq = tx_search.lower()
+        filtered = [
+            t for t in filtered
+            if sq in t["code"].lower()
+            or sq in t["desc"].lower()
+            or sq in t["use"].lower()
+            or sq in t["cat"].lower()
+        ]
+
+    st.markdown(f"**{len(filtered)} transaction(s) found**")
+
+    if not filtered:
+        st.markdown(
+            '<div class="warn-box">⚠️ No transactions match your search. '
+            'Try broader keywords.</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    cat_colors = {
+        "Performance Monitoring": "#e0f2fe",
+        "System Administration":  "#f0fdf4",
+        "Basis Configuration":    "#f5f3ff",
+        "Transport and Changes":  "#fef3c7",
+        "Upgrade and Patching":   "#eff6ff",
+        "Security and Authorizations": "#fef2f2",
+        "Database Administration":"#fff7ed",
+    }
+
+    # Group and display
+    display_cats = (
+        [tx_cat] if tx_cat != "All"
+        else all_cats
+    )
+    for cat_name in display_cats:
+        cat_items = [t for t in filtered if t["cat"] == cat_name]
+        if not cat_items:
+            continue
+        st.markdown(f"#### 📂 {cat_name}")
+        cols = st.columns(2)
+        for i, txn in enumerate(cat_items):
+            color = cat_colors.get(cat_name, "#f8fafc")
+            with cols[i % 2]:
+                st.markdown(
+                    f'<div style="background:{color};border:1px solid #e5e7eb;'
+                    f'border-radius:10px;padding:.8rem 1rem;margin:.4rem 0">'
+                    f'<span style="font-family:monospace;font-size:1.1rem;'
+                    f'font-weight:700;color:#0057A8">{txn["code"]}</span><br>'
+                    f'<strong style="font-size:.9rem">{txn["desc"]}</strong><br>'
+                    f'<small style="color:#374151">{txn["use"]}</small>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+    # CSV export
+    st.markdown("---")
+    if st.button("⬇️ Export Transaction List as CSV", use_container_width=True):
+        lines = ["Transaction Code,Description,Use Case,Category"]
+        for t in filtered:
+            lines.append(
+                f'"{t["code"]}","{t["desc"]}","{t["use"]}","{t["cat"]}"'
+            )
+        st.download_button(
+            "⬇️ Download transactions.csv",
+            data="\n".join(lines),
+            file_name=(
+                f"sap_transactions_"
+                f"{datetime.datetime.now().strftime('%Y%m%d')}.csv"
+            ),
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+
+# ============================================================
+# TAB — SIZING CALCULATOR
+# ============================================================
+def tab_sizing_calculator():
+    st.markdown("### 📐 SAP System Sizing Calculator")
+    st.markdown(
+        '<div class="info-box">Estimate hardware requirements based on '
+        'user count, workload profile, and growth horizon. Always validate '
+        'final sizing with the official '
+        '<a href="https://service.sap.com/quicksizer" target="_blank">'
+        'SAP Quick Sizer</a> tool and your hardware vendor.</div>',
+        unsafe_allow_html=True,
+    )
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        sz_product = st.selectbox(
+            "SAP Product",
+            ["SAP S/4HANA", "SAP HANA", "SAP BTP",
+             "SAP NetWeaver", "SAP ECC"],
+            key="sz_prod",
+        )
+        named_users = st.number_input(
+            "Total Named Users",
+            min_value=10, max_value=200000,
+            value=500, step=50, key="sz_users",
+        )
+        conc_pct = st.slider(
+            "Concurrent User Percentage",
+            5, 50, 15, key="sz_conc",
+        )
+    with col2:
+        workload = st.selectbox(
+            "Workload Profile",
+            [
+                "Mixed OLTP and OLAP",
+                "Primarily OLTP Transactions",
+                "Primarily OLAP Reporting",
+                "Batch Heavy",
+            ],
+            key="sz_wl",
+        )
+        ha_enabled = st.checkbox(
+            "Include HA Standby Node (+100%)",
+            value=False, key="sz_ha",
+        )
+        dr_enabled = st.checkbox(
+            "Include DR Site (+70%)",
+            value=False, key="sz_dr",
+        )
+    with col3:
+        growth_years = st.slider(
+            "Data Growth Horizon (Years)",
+            1, 10, 3, key="sz_years",
+        )
+        growth_pct = st.slider(
+            "Annual Data Growth Percentage",
+            5, 50, 15, key="sz_growth",
+        )
+        current_db_gb = st.number_input(
+            "Current Database Size (GB)",
+            min_value=0, max_value=500000,
+            value=500, step=100, key="sz_db",
+        )
+
+    if st.button(
+        "📐 Calculate Sizing Estimate",
+        type="primary", use_container_width=True,
+    ):
+        concurrent = int(named_users * conc_pct / 100)
+
+        # Tier selection
+        if concurrent < 50:
+            tier, base_cpu, base_ram, base_disk = "Small",    8,   128,  1000
+        elif concurrent < 200:
+            tier, base_cpu, base_ram, base_disk = "Medium",  16,   256,  3000
+        elif concurrent < 1000:
+            tier, base_cpu, base_ram, base_disk = "Large",   32,   512,  8000
+        else:
+            tier, base_cpu, base_ram, base_disk = "Enterprise", 64, 1024, 20000
+
+        # Workload multiplier
+        wl_mult = {
+            "Mixed OLTP and OLAP":        1.0,
+            "Primarily OLTP Transactions": 0.9,
+            "Primarily OLAP Reporting":    1.3,
+            "Batch Heavy":                 1.2,
+        }.get(workload, 1.0)
+
+        rec_cpu  = math.ceil(base_cpu  * wl_mult)
+        rec_ram  = math.ceil(base_ram  * wl_mult)
+        rec_disk = math.ceil(base_disk * wl_mult)
+
+        # HANA memory = same as RAM for HANA-based products
+        hana_mem = rec_ram if sz_product in ["SAP S/4HANA", "SAP HANA"] else 0
+
+        # DB growth projection
+        growth_factor  = (1 + growth_pct / 100) ** growth_years
+        projected_db   = math.ceil(
+            max(current_db_gb, rec_disk) * growth_factor
+        )
+
+        st.markdown("---")
+        st.markdown(f"#### 📊 Sizing Estimate — {sz_product}")
+        st.caption(
+            f"Based on: {named_users} named users · "
+            f"{concurrent} concurrent ({conc_pct}%) · "
+            f"{workload} · Tier: {tier}"
+        )
+
+        # Metric cards
+        m1, m2, m3, m4 = st.columns(4)
+        with m1:
+            st.markdown(
+                f'<div class="metric-card">'
+                f'<div class="value">{rec_cpu}</div>'
+                f'<div class="label">🖥️ CPU Cores</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with m2:
+            st.markdown(
+                f'<div class="metric-card">'
+                f'<div class="value">{rec_ram} GB</div>'
+                f'<div class="label">🧠 RAM</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with m3:
+            st.markdown(
+                f'<div class="metric-card">'
+                f'<div class="value">{rec_disk} GB</div>'
+                f'<div class="label">💾 Disk</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with m4:
+            st.markdown(
+                f'<div class="metric-card">'
+                f'<div class="value">'
+                f'{"N/A" if hana_mem == 0 else str(hana_mem) + " GB"}'
+                f'</div>'
+                f'<div class="label">🔷 HANA RAM</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # Detailed breakdown table
+        breakdown = [
+            ("Application Server CPU",  f"{rec_cpu} cores",
+             "Physical cores — HT adds logical"),
+            ("Application Server RAM",  f"{rec_ram} GB",
+             "ABAP WPs, buffers, OS overhead"),
+            ("HANA In-Memory RAM",
+             f"{hana_mem} GB" if hana_mem else "N/A",
+             "Must equal active data set size"),
+            ("OS Disk",                 "100 GB",
+             "SAP binaries, OS, logs"),
+            ("Data Disk",               f"{rec_disk} GB",
+             "Database data volumes"),
+            ("Backup Disk",             f"{rec_disk * 3} GB",
+             "3x DB size for retention"),
+            ("SUM Workspace",           "150 GB",
+             "Required for upgrade staging"),
+            (f"Projected DB ({growth_years}yr)",
+             f"{projected_db} GB",
+             f"At {growth_pct}% annual growth"),
+        ]
+
+        if ha_enabled:
+            breakdown.extend([
+                ("HA Standby CPU",   f"{rec_cpu} cores",  "Identical spec for failover"),
+                ("HA Standby RAM",   f"{rec_ram} GB",     "Identical spec for failover"),
+                ("HA Standby Disk",  f"{rec_disk} GB",    "Shared or replicated storage"),
+            ])
+        if dr_enabled:
+            breakdown.extend([
+                ("DR Site CPU",  f"{math.ceil(rec_cpu * 0.7)} cores", "70% of primary"),
+                ("DR Site RAM",  f"{math.ceil(rec_ram * 0.7)} GB",    "70% of primary"),
+                ("DR Site Disk", f"{math.ceil(rec_disk * 0.7)} GB",   "70% of primary"),
+            ])
+
+        rows = ""
+        for i, (comp, val, note) in enumerate(breakdown):
+            bg = "#f8fafc" if i % 2 == 0 else "#fff"
+            rows += (
+                f'<tr style="background:{bg}">'
+                f'<td style="padding:7px 14px;border:1px solid #e5e7eb;'
+                f'font-weight:500">{comp}</td>'
+                f'<td style="padding:7px 14px;border:1px solid #e5e7eb;'
+                f'font-weight:700;color:#0057A8;'
+                f'font-family:monospace">{val}</td>'
+                f'<td style="padding:7px 14px;border:1px solid #e5e7eb;'
+                f'font-size:.85rem;color:#6b7280">{note}</td>'
+                f'</tr>'
+            )
+
+        st.markdown(
+            f'<table style="width:100%;border-collapse:collapse;font-size:.875rem">'
+            f'<thead><tr style="background:#0057A8;color:#fff">'
+            f'<th style="padding:9px 14px;text-align:left">Component</th>'
+            f'<th style="padding:9px 14px;text-align:left">Estimated Size</th>'
+            f'<th style="padding:9px 14px;text-align:left">Notes</th>'
+            f'</tr></thead><tbody>{rows}</tbody></table>',
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            '<div class="warn-box" style="margin-top:1rem">⚠️ '
+            'These are indicative estimates only. Always validate with '
+            '<a href="https://service.sap.com/quicksizer" target="_blank">'
+            'SAP Quick Sizer</a> and your hardware vendor before procurement.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Export sizing report
+        txt = [
+            f"SAP Sizing Estimate — {sz_product}",
+            f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "=" * 50,
+            f"Named Users:        {named_users}",
+            f"Concurrent Users:   {concurrent} ({conc_pct}%)",
+            f"Workload Profile:   {workload}",
+            f"Sizing Tier:        {tier}",
+            "",
+            "COMPONENT ESTIMATES:",
+        ]
+        for comp, val, note in breakdown:
+            txt.append(f"  {comp:<30} {val:<15} # {note}")
+        txt.append("\nValidate with SAP Quick Sizer: service.sap.com/quicksizer")
+
+        st.download_button(
+            "⬇️ Download Sizing Estimate (.txt)",
+            data="\n".join(txt),
+            file_name=(
+                f"sap_sizing_{sz_product.replace(' ', '_')}_"
+                f"{datetime.datetime.now().strftime('%Y%m%d')}.txt"
+            ),
+            mime="text/plain",
+            use_container_width=True,
+        )
+
+
+# ============================================================
+# TAB — RELEASE CALENDAR
+# ============================================================
+def tab_release_calendar():
+    st.markdown("### 📅 SAP Release & Maintenance Calendar")
+    st.markdown(
+        '<div class="info-box">Track SAP product release dates and '
+        'maintenance end dates. Always verify with the official '
+        '<a href="https://support.sap.com/en/release-upgrade-maintenance.html" '
+        'target="_blank">SAP Maintenance Roadmap</a>.</div>',
+        unsafe_allow_html=True,
+    )
+
+    today = datetime.date.today()
+    rc_product = st.selectbox(
+        "Select Product Line",
+        list(SAP_RELEASES.keys()),
+        key="rc_prod",
+    )
+
+    releases = SAP_RELEASES[rc_product]
+    st.markdown(f"#### 📅 {rc_product} — Release Timeline")
+
+    rows = ""
+    for rel in releases:
+        ga_date   = datetime.date.fromisoformat(rel["ga"])
+        end_date  = datetime.date.fromisoformat(rel["end"])
+        days_left = (end_date - today).days
+        age_days  = (today - ga_date).days
+
+        years_old  = age_days // 365
+        months_old = (age_days % 365) // 30
+        age_str    = f"{years_old}y {months_old}m"
+
+        if days_left < 0:
+            status, sc, tc = "⛔ End of Maintenance", "#fee2e2", "#dc2626"
+            days_str = "Expired"
+        elif days_left < 180:
+            status, sc, tc = "⚠️ Ending Soon", "#fef3c7", "#d97706"
+            days_str = f"{days_left} days left"
+        elif days_left < 365:
+            status, sc, tc = "🟡 1 Year Left", "#fffbeb", "#92400e"
+            days_str = f"{days_left} days left"
+        else:
+            status, sc, tc = "✅ Supported", "#f0fdf4", "#16a34a"
+            days_str = f"{days_left} days left"
+
+        # Lifecycle bar
+        total_life = max((end_date - ga_date).days, 1)
+        used_days  = (today - ga_date).days
+        bar_pct    = max(0, min(100, int(used_days / total_life * 100)))
+        bar_color  = "#dc2626" if bar_pct > 85 else "#0057A8"
+
+        rows += (
+            f'<tr>'
+            f'<td style="padding:8px 14px;border:1px solid #e5e7eb;'
+            f'font-weight:600;color:#0057A8">{rel["release"]}</td>'
+            f'<td style="padding:8px 14px;border:1px solid #e5e7eb">{rel["ga"]}</td>'
+            f'<td style="padding:8px 14px;border:1px solid #e5e7eb">{rel["end"]}</td>'
+            f'<td style="padding:8px 14px;border:1px solid #e5e7eb;color:#6b7280">{age_str}</td>'
+            f'<td style="padding:8px 14px;border:1px solid #e5e7eb">'
+            f'<div style="background:#e0e7ef;border-radius:4px;height:14px;overflow:hidden">'
+            f'<div style="background:{bar_color};width:{bar_pct}%;height:100%"></div>'
+            f'</div>'
+            f'<small style="color:#6b7280">{bar_pct}% of lifecycle</small>'
+            f'</td>'
+            f'<td style="padding:8px 14px;border:1px solid #e5e7eb;background:{sc}">'
+            f'<strong style="color:{tc}">{status}</strong><br>'
+            f'<small style="color:{tc}">{days_str}</small>'
+            f'</td>'
+            f'</tr>'
+        )
+
+    st.markdown(
+        f'<table style="width:100%;border-collapse:collapse;font-size:.875rem">'
+        f'<thead><tr style="background:#0057A8;color:#fff">'
+        f'<th style="padding:9px 14px;text-align:left">Release</th>'
+        f'<th style="padding:9px 14px;text-align:left">GA Date</th>'
+        f'<th style="padding:9px 14px;text-align:left">Maint. End</th>'
+        f'<th style="padding:9px 14px;text-align:left">Age</th>'
+        f'<th style="padding:9px 14px;text-align:left">Lifecycle</th>'
+        f'<th style="padding:9px 14px;text-align:left">Status</th>'
+        f'</tr></thead><tbody>{rows}</tbody></table>',
+        unsafe_allow_html=True,
+    )
+
+    # Custom date checker
+    st.markdown("---")
+    st.markdown("#### 🔍 Check My System Maintenance Status")
+    cc1, cc2 = st.columns(2)
+    with cc1:
+        my_release = st.text_input(
+            "My current release",
+            placeholder="e.g. SAP S/4HANA 2020",
+            key="my_rel",
+        )
+    with cc2:
+        my_end = st.text_input(
+            "Maintenance end date (YYYY-MM-DD)",
+            placeholder="e.g. 2028-12-31",
+            key="my_end",
+        )
+
+    if st.button("🔍 Check Status", use_container_width=True):
+        if my_release and my_end:
+            try:
+                end_dt    = datetime.date.fromisoformat(my_end)
+                days_left = (end_dt - today).days
+                if days_left < 0:
+                    st.markdown(
+                        f'<div class="error-box">⛔ <strong>{my_release}</strong> '
+                        f'reached End of Maintenance on {my_end}. '
+                        f'You are running an unsupported release. '
+                        f'Plan upgrade immediately.</div>',
+                        unsafe_allow_html=True,
+                    )
+                elif days_left < 180:
+                    st.markdown(
+                        f'<div class="warn-box">⚠️ <strong>{my_release}</strong> '
+                        f'reaches End of Maintenance in {days_left} days '
+                        f'({my_end}). Begin upgrade planning now.</div>',
+                        unsafe_allow_html=True,
+                    )
+                elif days_left < 365:
+                    st.markdown(
+                        f'<div class="warn-box">🟡 <strong>{my_release}</strong> '
+                        f'has {days_left} days remaining. '
+                        f'Start planning within 3 months.</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        f'<div class="success-box">✅ <strong>{my_release}</strong> '
+                        f'is fully supported. Maintenance ends {my_end} '
+                        f'({days_left} days remaining).</div>',
+                        unsafe_allow_html=True,
+                    )
+            except ValueError:
+                st.error("⚠️ Invalid date format. Please use YYYY-MM-DD.")
+        else:
+            st.warning("Please enter both release name and maintenance end date.")
+
+
+# ============================================================
+# TAB — BATCH Q&A
+# ============================================================
+def tab_batch_qa():
+    st.markdown("### 📦 Batch Q&A — Multiple Questions at Once")
+    st.markdown(
+        '<div class="info-box">Enter multiple questions one per line. '
+        'The tool will search and generate answers for all of them. '
+        'Results are saved to Conversation History and can be exported.</div>',
+        unsafe_allow_html=True,
+    )
+
+    product = st.session_state.current_product
+
+    batch_input = st.text_area(
+        "Enter questions — one per line",
+        height=180,
+        placeholder=(
+            "What are the prerequisites for SAP S/4HANA 2023?\n"
+            "What are the recommended memory parameters for SAP HANA?\n"
+            "What is the upgrade path from ECC EHP8 to S/4HANA 2023?\n"
+            "What are the best practices for SAP HANA backup?"
+        ),
+        key="batch_input",
+    )
+
+    col_opt1, col_opt2 = st.columns(2)
+    with col_opt1:
+        fetch_docs = st.checkbox(
+            "Fetch SAP Help docs for each question",
+            value=False,
+            key="batch_fetch",
+            help="Slower but more accurate — fetches live documentation",
+        )
+    with col_opt2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        run_batch = st.button(
+            "🚀 Run Batch Q&A",
+            type="primary",
+            use_container_width=True,
+        )
+
+    if run_batch and batch_input.strip():
+        questions = [
+            q.strip()
+            for q in batch_input.strip().split("\n")
+            if q.strip()
+        ]
+        if not questions:
+            st.warning("No valid questions found.")
+            return
+
+        st.markdown(f"---\n#### Processing {len(questions)} question(s)…")
+        progress = st.progress(0)
+        results  = []
+
+        for i, question in enumerate(questions):
+            progress.progress(
+                (i + 1) / len(questions),
+                text=f"Q{i+1}/{len(questions)}: {question[:60]}…",
+            )
+
+            context = ""
+            sources = []
+
+            if fetch_docs:
+                sources = search_sap_help(question, product)
+                for res in sources[:2]:
+                    url = res["url"]
+                    if url not in st.session_state.doc_cache:
+                        doc = extract_doc_content(url)
+                        st.session_state.doc_cache[url] = doc
+                        st.session_state.fetched_docs[url] = doc
+                    context += (
+                        f"\n=== {st.session_state.doc_cache[url].get('title','')} ===\n"
+                        + st.session_state.doc_cache[url].get("content", "")[:2000]
+                    )
+
+            answer = get_ai_answer(
+                question, context,
+                st.session_state.api_key, product,
+            )
+            results.append({
+                "question": question,
+                "answer":   answer,
+                "sources":  sources,
+            })
+            st.session_state.conversation.append({
+                "question": question,
+                "answer":   answer,
+                "sources":  sources,
+                "product":  product,
+            })
+
+        progress.empty()
+        st.success(f"✅ Completed {len(results)} Q&A pair(s)!")
+
+        # Display results
+        for i, r in enumerate(results, 1):
+            with st.expander(
+                f"Q{i}: {r['question'][:80]}",
+                expanded=(i == 1),
+            ):
+                st.markdown(
+                    f'<div class="answer-box">{r["answer"]}</div>',
+                    unsafe_allow_html=True,
+                )
+                for s in r["sources"][:2]:
+                    st.markdown(
+                        f'<div class="source-card">'
+                        f'<a href="{s["url"]}" target="_blank">'
+                        f'📄 {s["title"]}</a>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+        # Export options
+        st.markdown("---")
+        col_j, col_m = st.columns(2)
+        with col_j:
+            export_data = json.dumps(
+                {
+                    "product":   product,
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "results":   results,
+                },
+                indent=2,
+                default=str,
+            )
+            st.download_button(
+                "⬇️ Export as JSON",
+                data=export_data,
+                file_name=(
+                    f"batch_qa_"
+                    f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                ),
+                mime="application/json",
+                use_container_width=True,
+            )
+        with col_m:
+            md_lines = [
+                f"# SAP Batch Q&A — {product or 'General SAP'}",
+                f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                "",
+            ]
+            for i, r in enumerate(results, 1):
+                md_lines += [
+                    f"## Q{i}: {r['question']}",
+                    "",
+                    r["answer"],
+                    "",
+                    "---",
+                    "",
+                ]
+            st.download_button(
+                "⬇️ Export as Markdown",
+                data="\n".join(md_lines),
+                file_name=(
+                    f"batch_qa_"
+                    f"{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                ),
+                mime="text/markdown",
+                use_container_width=True,
+            )
+
+
+# ============================================================
+# TAB — LANDSCAPE VISUALIZER
+# ============================================================
+def tab_landscape_visualizer():
+    st.markdown("### 🗺️ SAP Landscape Visualizer")
+    st.markdown(
+        '<div class="info-box">Define your SAP system landscape to '
+        'generate a visual layout, transport route map, upgrade sequence '
+        'recommendation, and downtime impact estimate.</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("#### 🏗️ Define Your Landscape")
+    num_systems = st.slider(
+        "Number of systems", 2, 10, 4, key="ls_num"
+    )
+
+    systems = []
+    roles_list = [
+        "Development", "Quality Assurance", "Pre-Production",
+        "Production", "Sandbox", "Training", "Test",
+        "Support", "Solution Manager", "BTP",
+    ]
+    cols_per_row = 2
+
+    for i in range(num_systems):
+        if i % cols_per_row == 0:
+            row_cols = st.columns(cols_per_row)
+        with row_cols[i % cols_per_row]:
+            with st.expander(f"System {i+1}", expanded=(i < 4)):
+                default_sids  = ["DEV","QAS","PRE","PRD",
+                                  "SBX","TRN","TST","SUP","SOL","BTP"]
+                default_roles = roles_list[:10]
+                sid = st.text_input(
+                    "SID",
+                    value=default_sids[i] if i < 10 else f"SY{i}",
+                    key=f"ls_sid_{i}",
+                )
+                role = st.selectbox(
+                    "Role",
+                    roles_list,
+                    index=min(i, len(roles_list)-1),
+                    key=f"ls_role_{i}",
+                )
+                release = st.text_input(
+                    "Release",
+                    value="SAP S/4HANA 2023",
+                    key=f"ls_rel_{i}",
+                )
+                db = st.selectbox(
+                    "Database",
+                    ["SAP HANA", "Oracle", "MS SQL Server", "IBM DB2"],
+                    key=f"ls_db_{i}",
+                )
+                systems.append({
+                    "sid": sid, "role": role,
+                    "release": release, "db": db,
+                })
+
+    if st.button(
+        "🗺️ Generate Landscape View",
+        type="primary", use_container_width=True,
+    ):
+        st.markdown("---\n#### 🗺️ SAP System Landscape")
+
+        role_colors = {
+            "Development":     "#dbeafe",
+            "Quality Assurance":"#dcfce7",
+            "Pre-Production":  "#fef3c7",
+            "Production":      "#fee2e2",
+            "Sandbox":         "#f5f3ff",
+            "Training":        "#f0fdf4",
+            "Test":            "#e0f2fe",
+            "Support":         "#fdf4ff",
+            "Solution Manager":"#fff7ed",
+            "BTP":             "#ecfdf5",
+        }
+        role_border = {
+            "Development":     "#93c5fd",
+            "Quality Assurance":"#86efac",
+            "Pre-Production":  "#fcd34d",
+            "Production":      "#fca5a5",
+            "Sandbox":         "#c4b5fd",
+            "Training":        "#bbf7d0",
+            "Test":            "#7dd3fc",
+            "Support":         "#e9d5ff",
+            "Solution Manager":"#fed7aa",
+            "BTP":             "#a7f3d0",
+        }
+
+        # System cards
+        n_cols  = min(4, len(systems))
+        sc_cols = st.columns(n_cols)
+        for i, sys in enumerate(systems):
+            bg  = role_colors.get(sys["role"], "#f8fafc")
+            bdr = role_border.get(sys["role"], "#e5e7eb")
+            db_icon = {
+                "SAP HANA": "🔷",
+                "Oracle": "🔶",
+                "MS SQL Server": "🪟",
+                "IBM DB2": "🔵",
+            }.get(sys["db"], "🗄️")
+            icon = "🖥️" if sys["role"] == "Production" else "💻"
+            with sc_cols[i % n_cols]:
+                st.markdown(
+                    f'<div style="background:{bg};border:2px solid {bdr};'
+                    f'border-radius:12px;padding:1rem;'
+                    f'text-align:center;margin:.4rem 0">'
+                    f'<div style="font-size:1.8rem">{icon}</div>'
+                    f'<div style="font-family:monospace;font-size:1.2rem;'
+                    f'font-weight:700;color:#0057A8">{sys["sid"]}</div>'
+                    f'<div style="font-size:.8rem;font-weight:600;'
+                    f'color:#374151">{sys["role"]}</div>'
+                    f'<div style="font-size:.75rem;color:#6b7280">'
+                    f'{sys["release"]}</div>'
+                    f'<div style="font-size:.75rem;color:#6b7280">'
+                    f'{db_icon} {sys["db"]}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        # Transport route
+        route = " → ".join(
+            f"<strong>{s['sid']}</strong>" for s in systems
+        )
+        st.markdown(
+            f'<div style="text-align:center;font-size:1.1rem;'
+            f'color:#0057A8;padding:.8rem 0">'
+            f'🔄 Transport Route: {route}'
+            f'<br><small style="color:#6b7280;font-size:.8rem">'
+            f'TMS — Configured in Transaction STMS</small>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # Upgrade sequence
+        st.markdown("---\n#### 🔄 Recommended Upgrade Sequence")
+        upgrade_order = [
+            "Sandbox", "Development", "Test", "Training",
+            "Support", "Solution Manager", "Quality Assurance",
+            "Pre-Production", "BTP", "Production",
+        ]
+        sorted_systems = sorted(
+            systems,
+            key=lambda s: (
+                upgrade_order.index(s["role"])
+                if s["role"] in upgrade_order else 99
+            ),
+        )
+        for seq, sys in enumerate(sorted_systems, 1):
+            is_prod = sys["role"] == "Production"
+            flag = "⚠️ PRODUCTION — maximum care required" if is_prod else f"✅ {sys['role']}"
+            st.markdown(
+                f'<div class="step-card">'
+                f'<div class="step-num">{seq}</div>'
+                f'<div>'
+                f'<strong style="font-family:monospace;color:#0057A8">'
+                f'{sys["sid"]}</strong> ({flag})<br>'
+                f'<small>{sys["release"]} · {sys["db"]}</small>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        # Downtime estimates
+        st.markdown("---\n#### ⏱️ Estimated Downtime per System")
+        downtime_map = {
+            "Development":     "2–4 hours",
+            "Quality Assurance":"4–6 hours",
+            "Pre-Production":  "4–8 hours",
+            "Production":      "6–12 hours",
+            "Sandbox":         "1–2 hours",
+            "Training":        "2–4 hours",
+            "Test":            "2–4 hours",
+            "Support":         "2–4 hours",
+            "Solution Manager":"4–8 hours",
+            "BTP":             "0–1 hour (zero-downtime capable)",
+        }
+        dt_cols = st.columns(min(4, len(systems)))
+        for i, sys in enumerate(systems):
+            with dt_cols[i % 4]:
+                is_prod = sys["role"] == "Production"
+                bg  = "#fee2e2" if is_prod else "#f8fafc"
+                bdr = "#fca5a5" if is_prod else "#e5e7eb"
+                tc  = "#dc2626" if is_prod else "#374151"
+                st.markdown(
+                    f'<div style="background:{bg};border:1px solid {bdr};'
+                    f'border-radius:10px;padding:.8rem;'
+                    f'text-align:center;margin:.3rem 0">'
+                    f'<div style="font-family:monospace;font-weight:700;'
+                    f'color:#0057A8">{sys["sid"]}</div>'
+                    f'<div style="font-size:1rem;font-weight:700;color:{tc}">'
+                    f'{downtime_map.get(sys["role"], "4–8 hours")}</div>'
+                    f'<div style="font-size:.72rem;color:#6b7280">'
+                    f'estimated downtime</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+        # Export landscape
+        lines = [
+            "SAP System Landscape Definition",
+            f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "=" * 60,
+            "",
+            "SYSTEMS:",
+        ]
+        for sys in systems:
+            lines.append(
+                f"  {sys['sid']:<8} {sys['role']:<22} "
+                f"{sys['release']:<25} DB: {sys['db']}"
+            )
+        lines += ["", "TRANSPORT ROUTE:", "  " + " → ".join(s["sid"] for s in systems)]
+        lines += ["", "UPGRADE SEQUENCE:"]
+        for seq, sys in enumerate(sorted_systems, 1):
+            lines.append(f"  {seq}. {sys['sid']} ({sys['role']})")
+
+        st.download_button(
+            "⬇️ Export Landscape Definition (.txt)",
+            data="\n".join(lines),
+            file_name=(
+                f"sap_landscape_"
+                f"{datetime.datetime.now().strftime('%Y%m%d')}.txt"
+            ),
+            mime="text/plain",
+            use_container_width=True,
+        )
+
+
+# ============================================================
+# UPDATED main() — REPLACE YOUR EXISTING main() WITH THIS
+# ============================================================
+def main():
+    render_header()
+    render_sidebar()
+
+    product = st.session_state.current_product
+
+    # Top metrics
+    mc1, mc2, mc3, mc4, mc5 = st.columns(5)
+    with mc1:
+        st.markdown(
+            f'<div class="metric-card"><div class="value">'
+            f'{len(st.session_state.fetched_docs)}</div>'
+            f'<div class="label">📄 Docs Fetched</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc2:
+        st.markdown(
+            f'<div class="metric-card"><div class="value">'
+            f'{len(st.session_state.conversation)}</div>'
+            f'<div class="label">💬 Q&amp;A Pairs</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc3:
+        dp = (product[:13] + "…") if product and len(product) > 13 else (product or "—")
+        st.markdown(
+            f'<div class="metric-card">'
+            f'<div class="value" style="font-size:.88rem">{dp}</div>'
+            f'<div class="label">📦 Product</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc4:
+        ml = "🤖 Gemini AI" if st.session_state.api_key else "📐 Rules"
+        st.markdown(
+            f'<div class="metric-card">'
+            f'<div class="value" style="font-size:.85rem">{ml}</div>'
+            f'<div class="label">Answer Mode</div></div>',
+            unsafe_allow_html=True,
+        )
+    with mc5:
+        cl = len(st.session_state.get("last_checklist", []))
+        st.markdown(
+            f'<div class="metric-card"><div class="value">{cl}</div>'
+            f'<div class="label">✅ Checklist</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # All 16 tabs
+    (t1, t2, t3, t4, t5, t6, t7,
+     t8, t9, t10, t11, t12, t13, t14, t15, t16) = st.tabs([
+        "🔍 Search & Ask",
+        "📄 Document Viewer",
+        "📋 Upgrade Planner",
+        "🔄 Upgrade Matrix",
+        "⚙️ Parameters",
+        "✅ Checklist",
+        "🔧 SUM Monitor",
+        "🗄️ HANA Health",
+        "🔎 Transactions",
+        "📐 Sizing",
+        "📅 Release Calendar",
+        "📦 Batch Q&A",
+        "🗺️ Landscape",
+        "💬 Conversation",
+        "📄 Reports",
+        "📚 Resources",
+    ])
+
+    with t1:  tab_search_and_ask(product)
+    with t2:  tab_document_viewer(product)
+    with t3:  tab_upgrade_planner(product)
+    with t4:  tab_upgrade_matrix()
+    with t5:  tab_parameters()
+    with t6:  tab_checklist_ui()
+    with t7:  tab_sum_monitor()
+    with t8:  tab_hana_health()
+    with t9:  tab_transaction_finder()
+    with t10: tab_sizing_calculator()
+    with t11: tab_release_calendar()
+    with t12: tab_batch_qa()
+    with t13: tab_landscape_visualizer()
+    with t14: tab_conversation()
+    with t15: tab_reports()
+    with t16: tab_resources()
+
+
 if __name__ == "__main__":
     main()
-    
