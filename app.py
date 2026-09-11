@@ -893,7 +893,2571 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
+# End of Part 5
+
+# ============================================================
+# SAP HELP NAVIGATOR PRO - PART 6/11
+# Upgrade Matrix & Compatibility Checker
+# ============================================================
+
+import pandas as pd
+from typing import List, Dict, Tuple, Optional
+
+# ============================================================
+# UPGRADE MATRIX DATA
+# ============================================================
+
+def get_upgrade_matrix() -> List[Dict]:
+    """
+    Complete upgrade matrix with paths, tools, and SAP Notes
+    Based on context [1]
+    """
+    return [
+        {
+            "source": "ECC 6.0 EHP5",
+            "target": "S/4HANA 2023",
+            "path_type": "System Conversion",
+            "tool": "SUM with DMO",
+            "stops": ["ECC 6.0 EHP8 (recommended)"],
+            "downtime": "High (24-48 hours)",
+            "sap_notes": ["2568780", "2399707", "2913617"],
+            "complexity": "High"
+        },
+        {
+            "source": "ECC 6.0 EHP6",
+            "target": "S/4HANA 2023",
+            "path_type": "System Conversion",
+            "tool": "SUM with DMO",
+            "stops": ["ECC 6.0 EHP8 (recommended)"],
+            "downtime": "High (24-48 hours)",
+            "sap_notes": ["2568780", "2399707", "2913617"],
+            "complexity": "High"
+        },
+        {
+            "source": "ECC 6.0 EHP7",
+            "target": "S/4HANA 2023",
+            "path_type": "System Conversion",
+            "tool": "SUM with DMO",
+            "stops": ["Direct or via EHP8"],
+            "downtime": "High (24-48 hours)",
+            "sap_notes": ["2568780", "2399707", "2913617"],
+            "complexity": "Medium-High"
+        },
+        {
+            "source": "ECC 6.0 EHP8",
+            "target": "S/4HANA 2023",
+            "path_type": "System Conversion",
+            "tool": "SUM with DMO",
+            "stops": ["Direct path available"],
+            "downtime": "High (24-48 hours)",
+            "sap_notes": ["2568780", "2399707", "2913617"],
+            "complexity": "Medium"
+        },
+        {
+            "source": "S/4HANA 2020",
+            "target": "S/4HANA 2023",
+            "path_type": "Release Upgrade",
+            "tool": "SUM",
+            "stops": ["Direct upgrade"],
+            "downtime": "Medium (12-24 hours)",
+            "sap_notes": ["2568780", "2769531"],
+            "complexity": "Low-Medium"
+        },
+        {
+            "source": "S/4HANA 2021",
+            "target": "S/4HANA 2023",
+            "path_type": "Release Upgrade",
+            "tool": "SUM",
+            "stops": ["Direct upgrade"],
+            "downtime": "Medium (12-24 hours)",
+            "sap_notes": ["2568780", "2769531"],
+            "complexity": "Low"
+        },
+        {
+            "source": "S/4HANA 2022",
+            "target": "S/4HANA 2023",
+            "path_type": "Release Upgrade",
+            "tool": "SUM",
+            "stops": ["Direct upgrade"],
+            "downtime": "Low (8-16 hours)",
+            "sap_notes": ["2568780", "2769531"],
+            "complexity": "Low"
+        },
+        {
+            "source": "S/4HANA 2023",
+            "target": "S/4HANA 2025",
+            "path_type": "Release Upgrade",
+            "tool": "SUM",
+            "stops": ["Direct upgrade (no 2024)"],
+            "downtime": "Low (8-16 hours)",
+            "sap_notes": ["2568780", "2769531"],
+            "complexity": "Low"
+        },
+        {
+            "source": "ECC 6.0 EHP8",
+            "target": "S/4HANA 2025",
+            "path_type": "System Conversion",
+            "tool": "SUM with DMO",
+            "stops": ["Direct path available"],
+            "downtime": "High (24-48 hours)",
+            "sap_notes": ["2568780", "2399707", "2913617"],
+            "complexity": "Medium"
+        },
+        {
+            "source": "BW 7.5",
+            "target": "BW/4HANA 2.0",
+            "path_type": "System Conversion",
+            "tool": "Shell Conversion or DMO",
+            "stops": ["Direct conversion"],
+            "downtime": "High (24-72 hours)",
+            "sap_notes": ["2214409", "2361500"],
+            "complexity": "High"
+        },
+    ]
+
+def search_upgrade_path(source: str, target: str) -> Optional[Dict]:
+    """Search for specific upgrade path in matrix"""
+    matrix = get_upgrade_matrix()
+    for path in matrix:
+        if path["source"] == source and path["target"] == target:
+            return path
+    return None
+
+def get_all_paths_from_source(source: str) -> List[Dict]:
+    """Get all possible upgrade paths from a source system"""
+    matrix = get_upgrade_matrix()
+    return [path for path in matrix if path["source"] == source]
+
+# ============================================================
+# COMPATIBILITY CHECKER
+# ============================================================
+
+def check_compatibility(
+    sap_product: str,
+    sap_version: str,
+    database: str,
+    db_version: str,
+    os: str,
+    os_version: str
+) -> Dict:
+    """
+    Check compatibility based on PAM (Product Availability Matrix)
+    Returns compatibility status and any blockers
+    Based on context [1]
+    """
+    
+    # Define compatibility rules (simplified - real PAM is more complex)
+    compatibility_rules = {
+        "S/4HANA 2023": {
+            "databases": {
+                "SAP HANA": ["2.0 SPS06", "2.0 SPS07"],
+                "Oracle": [],  # Not supported for S/4HANA
+                "SQL Server": [],  # Not supported for S/4HANA
+                "DB2": [],  # Not supported for S/4HANA
+            },
+            "os": {
+                "RHEL": ["8.4", "8.6", "8.8", "9.0"],
+                "SLES": ["15 SP3", "15 SP4", "15 SP5"],
+                "Windows": [],  # Not supported for S/4HANA production
+            }
+        },
+        "S/4HANA 2025": {
+            "databases": {
+                "SAP HANA": ["2.0 SPS07"],
+            },
+            "os": {
+                "RHEL": ["8.6", "8.8", "9.0", "9.2"],
+                "SLES": ["15 SP4", "15 SP5", "15 SP6"],
+            }
+        },
+        "ECC 6.0": {
+            "databases": {
+                "SAP HANA": ["2.0 SPS04", "2.0 SPS05", "2.0 SPS06"],
+                "Oracle": ["19c"],
+                "SQL Server": ["2019"],
+                "DB2": ["11.5"],
+            },
+            "os": {
+                "RHEL": ["7.9", "8.4", "8.6"],
+                "SLES": ["12 SP5", "15 SP2", "15 SP3"],
+                "Windows": ["2019", "2022"],
+            }
+        },
+    }
+    
+    blockers = []
+    warnings = []
+    compatible = True
+    
+    # Check if product version exists in rules
+    if sap_product not in compatibility_rules:
+        return {
+            "compatible": False,
+            "status": "Unknown Product",
+            "blockers": [f"Product '{sap_product}' not found in compatibility matrix"],
+            "warnings": [],
+            "recommendation": "Verify product name and consult SAP PAM"
+        }
+    
+    product_rules = compatibility_rules[sap_product]
+    
+    # Check database compatibility
+    if database not in product_rules["databases"]:
+        compatible = False
+        blockers.append(
+            f"Database '{database}' is not supported for {sap_product}"
+        )
+    elif db_version not in product_rules["databases"][database]:
+        if len(product_rules["databases"][database]) == 0:
+            compatible = False
+            blockers.append(
+                f"{database} is not supported for {sap_product}"
+            )
+        else:
+            compatible = False
+            blockers.append(
+                f"{database} version '{db_version}' is not certified. "
+                f"Supported versions: {', '.join(product_rules['databases'][database])}"
+            )
+    
+    # Check OS compatibility
+    if os not in product_rules["os"]:
+        compatible = False
+        blockers.append(
+            f"Operating System '{os}' is not supported for {sap_product}"
+        )
+    elif os_version not in product_rules["os"][os]:
+        if len(product_rules["os"][os]) == 0:
+            compatible = False
+            blockers.append(
+                f"{os} is not supported for {sap_product}"
+            )
+        else:
+            warnings.append(
+                f"{os} version '{os_version}' may not be certified. "
+                f"Recommended versions: {', '.join(product_rules['os'][os])}"
+            )
+    
+    # Additional checks for S/4HANA
+    if "S/4HANA" in sap_product:
+        if database != "SAP HANA":
+            compatible = False
+            blockers.append(
+                "S/4HANA requires SAP HANA database (no other DB supported)"
+            )
+        
+        if os == "Windows":
+            warnings.append(
+                "Windows is only supported for dev/test, not production S/4HANA"
+            )
+    
+    # Determine status
+    if compatible and len(warnings) == 0:
+        status = "Fully Compatible"
+        recommendation = "This configuration is supported by SAP"
+    elif compatible and len(warnings) > 0:
+        status = "Compatible with Warnings"
+        recommendation = "Review warnings and consult SAP PAM for certification status"
+    else:
+        status = "Not Compatible"
+        recommendation = "This configuration has blockers. Review SAP PAM and update components"
+    
+    return {
+        "compatible": compatible,
+        "status": status,
+        "blockers": blockers,
+        "warnings": warnings,
+        "recommendation": recommendation,
+        "pam_link": "https://support.sap.com/pam"
+    }
+
+# ============================================================
+# UI RENDERING FUNCTIONS
+# ============================================================
+
+def render_upgrade_matrix_tab():
+    """Render the Upgrade Matrix tab [1]"""
+    st.title("🔄 SAP Upgrade Matrix")
+    st.markdown("Find upgrade paths between SAP releases with tools, stops, and SAP Notes")
+    
+    # Search section
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        source_system = st.selectbox(
+            "Source System:",
+            [
+                "ECC 6.0 EHP5", "ECC 6.0 EHP6", "ECC 6.0 EHP7", "ECC 6.0 EHP8",
+                "S/4HANA 2020", "S/4HANA 2021", "S/4HANA 2022", "S/4HANA 2023",
+                "BW 7.5"
+            ],
+            key="upgrade_matrix_source"
+        )
+    
+    with col2:
+        target_system = st.selectbox(
+            "Target System:",
+            ["S/4HANA 2023", "S/4HANA 2025", "BW/4HANA 2.0"],
+            key="upgrade_matrix_target"
+        )
+    
+    if st.button("🔍 Find Upgrade Path", type="primary"):
+        path = search_upgrade_path(source_system, target_system)
+        
+        if path:
+            st.success(f"✅ Upgrade path found: {source_system} → {target_system}")
+            
+            # Display path details
+            col_a, col_b, col_c = st.columns(3)
+            
+            with col_a:
+                st.metric("Path Type", path["path_type"])
+                st.metric("Tool Required", path["tool"])
+            
+            with col_b:
+                st.metric("Complexity", path["complexity"])
+                st.metric("Expected Downtime", path["downtime"])
+            
+            with col_c:
+                st.metric("Intermediate Stops", path["stops"][0] if path["stops"] else "Direct")
+            
+            # SAP Notes
+            st.markdown("### 📋 Key SAP Notes")
+            for note in path["sap_notes"]:
+                st.markdown(f"- **SAP Note {note}** - [View on SAP Support](https://launchpad.support.sap.com/#/notes/{note})")
+            
+            # Additional guidance
+            st.markdown("### 📝 Upgrade Steps")
+            st.markdown("""
+            1. Run SAP Readiness Check
+            2. Use SAP Maintenance Planner for planning
+            3. Download software via Maintenance Planner
+            4. Perform sandbox conversion test
+            5. Execute production upgrade using SUM
+            """)
+            
+        else:
+            st.error(f"❌ No direct upgrade path found from {source_system} to {target_system}")
+            st.info("Consider intermediate steps or consult SAP PAM")
+    
+    # Show full matrix
+    st.markdown("---")
+    st.markdown("### 📊 Complete Upgrade Matrix")
+    
+    matrix = get_upgrade_matrix()
+    df = pd.DataFrame(matrix)
+    
+    # Format for display
+    df_display = df[["source", "target", "path_type", "tool", "complexity", "downtime"]]
+    df_display.columns = ["Source", "Target", "Type", "Tool", "Complexity", "Downtime"]
+    
+    st.dataframe(df_display, use_container_width=True)
+
+def render_compatibility_checker_tab():
+    """Render the Compatibility Checker tab [1]"""
+    st.title("🔍 SAP Compatibility Checker")
+    st.markdown("Validate your system configuration against SAP PAM (Product Availability Matrix)")
+    
+    st.markdown("### System Configuration")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        sap_product = st.selectbox(
+            "SAP Product:",
+            ["S/4HANA 2023", "S/4HANA 2025", "ECC 6.0", "BW/4HANA 2.0"],
+            key="compat_product"
+        )
+        
+        database = st.selectbox(
+            "Database:",
+            ["SAP HANA", "Oracle", "SQL Server", "DB2"],
+            key="compat_db"
+        )
+        
+        os = st.selectbox(
+            "Operating System:",
+            ["RHEL", "SLES", "Windows"],
+            key="compat_os"
+        )
+    
+    with col2:
+        sap_version = st.text_input(
+            "Product Version:",
+            value=sap_product,
+            key="compat_sap_version",
+            disabled=True
+        )
+        
+        db_version = st.selectbox(
+            "Database Version:",
+            ["2.0 SPS07", "2.0 SPS06", "2.0 SPS05", "2.0 SPS04", "19c", "2019", "11.5"],
+            key="compat_db_version"
+        )
+        
+        os_version = st.selectbox(
+            "OS Version:",
+            ["9.2", "9.0", "8.8", "8.6", "8.4", "7.9", "15 SP6", "15 SP5", "15 SP4", "15 SP3", "12 SP5", "2022", "2019"],
+            key="compat_os_version"
+        )
+    
+    if st.button("✅ Check Compatibility", type="primary"):
+        with st.spinner("Checking compatibility against SAP PAM..."):
+            result = check_compatibility(
+                sap_product=sap_product,
+                sap_version=sap_version,
+                database=database,
+                db_version=db_version,
+                os=os,
+                os_version=os_version
+            )
+            
+            # Display result
+            if result["compatible"]:
+                st.success(f"✅ {result['status']}")
+            else:
+                st.error(f"❌ {result['status']}")
+            
+            # Show details
+            st.markdown(f"**Recommendation:** {result['recommendation']}")
+            
+            # Blockers
+            if result["blockers"]:
+                st.markdown("### 🚫 Compatibility Blockers")
+                for blocker in result["blockers"]:
+                    st.error(blocker)
+            
+            # Warnings
+            if result["warnings"]:
+                st.markdown("### ⚠️ Warnings")
+                for warning in result["warnings"]:
+                    st.warning(warning)
+            
+            # PAM Link
+            st.markdown("---")
+            st.info(f"📚 Verify full compatibility at [SAP PAM]({result['pam_link']})")
+
+# End of Part 6
+# ============================================================
+# SAP HELP NAVIGATOR PRO - PART 7/11
+# OS Parameters & Enhanced Parameter Engine
+# ============================================================
+
+def get_os_parameters(os_type: str, sap_product: str) -> str:
+    """
+    Generate OS kernel parameters for SAP installations
+    Based on SAP Note 1984787 and 900929
+    """
+    
+    if os_type == "RHEL" or os_type == "Red Hat":
+        return get_rhel_parameters(sap_product)
+    elif os_type == "SLES" or os_type == "SUSE":
+        return get_sles_parameters(sap_product)
+    else:
+        return "OS parameters only available for RHEL and SLES"
+
+def get_rhel_parameters(sap_product: str) -> str:
+    """Generate /etc/sysctl.conf for RHEL"""
+    
+    params = """
+# /etc/sysctl.conf for SAP on Red Hat Enterprise Linux
+# Based on SAP Note 1984787 and 2382421
+
+# Shared Memory Settings
+kernel.shmmax = 18446744073709551615
+kernel.shmall = 18446744073709551615
+kernel.shmmni = 4096
+
+# Semaphore Settings (SEMMSL SEMMNS SEMOPM SEMMNI)
+kernel.sem = 1250 256000 100 8192
+
+# Virtual Memory
+vm.max_map_count = 2147483647
+
+# Network Settings
+net.ipv4.ip_local_port_range = 40000 65535
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+net.core.rmem_default = 16777216
+net.core.wmem_default = 16777216
+
+# Kernel Settings
+kernel.pid_max = 4194304
+
+# File Handles
+fs.file-max = 20000000
+fs.aio-max-nr = 18446744073709551615
+"""
+    
+    if "S/4HANA" in sap_product or "HANA" in sap_product:
+        params += """
+# Additional settings for SAP HANA
+kernel.numa_balancing = 0
+vm.swappiness = 10
+"""
+    
+    return params
+
+def get_sles_parameters(sap_product: str) -> str:
+    """Generate /etc/sysctl.conf for SLES"""
+    
+    params = """
+# /etc/sysctl.conf for SAP on SUSE Linux Enterprise Server
+# Based on SAP Note 1984787
+
+# Shared Memory Settings
+kernel.shmmax = 18446744073709551615
+kernel.shmall = 18446744073709551615
+kernel.shmmni = 4096
+
+# Semaphore Settings
+kernel.sem = 1250 256000 100 8192
+
+# Virtual Memory
+vm.max_map_count = 2000000
+
+# Network Settings
+net.ipv4.ip_local_port_range = 40000 65535
+net.ipv4.tcp_rmem = 4096 87380 16777216
+net.ipv4.tcp_wmem = 4096 65536 16777216
+net.core.rmem_max = 16777216
+net.core.wmem_max = 16777216
+
+# Kernel Settings
+kernel.pid_max = 4194304
+
+# File Handles
+fs.file-max = 20000000
+fs.aio-max-nr = 18446744073709551615
+"""
+    
+    if "HANA" in sap_product:
+        params += """
+# Additional settings for SAP HANA
+kernel.numa_balancing = 0
+"""
+    
+    return params
+
+def get_limits_conf() -> str:
+    """Generate /etc/security/limits.conf entries"""
+    
+    return """
+# /etc/security/limits.conf for SAP
+# Add these entries for SAP user (replace <sapsid>adm)
+
+<sapsid>adm soft nofile 1048576
+<sapsid>adm hard nofile 1048576
+<sapsid>adm soft nproc unlimited
+<sapsid>adm hard nproc unlimited
+"""
+
+def generate_parameter_export(params: Dict, format_type: str = "txt") -> str:
+    """
+    Export parameters in various formats
+    Supports: txt, ini, json
+    """
+    
+    if format_type == "txt":
+        output = "# SAP Parameter Export\n"
+        output += "# Generated by SAP Help Navigator Pro\n\n"
+        for key, value in params.items():
+            output += f"{key} = {value}\n"
+        return output
+    
+    elif format_type == "ini":
+        output = "[DEFAULT]\n"
+        for key, value in params.items():
+            output += f"{key} = {value}\n"
+        return output
+    
+    elif format_type == "json":
+        import json
+        return json.dumps(params, indent=2)
+    
+    else:
+        return str(params)
+
+def render_os_parameters_tab():
+    """Render OS Parameters tab"""
+    st.title("🐧 OS Kernel Parameters for SAP")
+    st.markdown("Generate operating system parameters based on SAP Notes 1984787, 900929, 2382421")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        os_type = st.selectbox(
+            "Operating System:",
+            ["RHEL", "SLES"],
+            key="os_param_type"
+        )
+    
+    with col2:
+        sap_product = st.selectbox(
+            "SAP Product:",
+            ["S/4HANA", "ECC", "BW/4HANA", "SAP HANA DB", "NetWeaver"],
+            key="os_param_product"
+        )
+    
+    if st.button("📋 Generate OS Parameters", type="primary"):
+        st.success("✅ OS parameters generated!")
+        
+        # System parameters
+        st.markdown("### `/etc/sysctl.conf`")
+        st.markdown("Copy and append to your `/etc/sysctl.conf` file:")
+        
+        sysctl_params = get_os_parameters(os_type, sap_product)
+        st.code(sysctl_params, language="bash")
+        
+        st.download_button(
+            label="💾 Download sysctl.conf",
+            data=sysctl_params,
+            file_name=f"sysctl_sap_{os_type.lower()}.conf",
+            mime="text/plain"
+        )
+        
+        # Limits configuration
+        st.markdown("---")
+        st.markdown("### `/etc/security/limits.conf`")
+        st.markdown("Add these entries to your `/etc/security/limits.conf` file:")
+        
+        limits = get_limits_conf()
+        st.code(limits, language="bash")
+        
+        # Apply instructions
+        st.markdown("---")
+        st.markdown("### 🔧 How to Apply")
+        st.markdown("""
+        1. **Backup existing configuration:**
+           ```bash
+           cp /etc/sysctl.conf /etc/sysctl.conf.backup
+           ```
+        
+        2. **Append parameters to sysctl.conf:**
+           ```bash
+           cat sysctl_sap.conf >> /etc/sysctl.conf
+           ```
+        
+        3. **Apply changes:**
+           ```bash
+           sysctl -p
+           ```
+        
+        4. **Verify settings:**
+           ```bash
+           sysctl -a | grep kernel.shmmax
+           ```
+        
+        5. **Reboot required:** Yes (for all settings to take effect)
+        """)
+        
+        st.info("📋 **SAP Note 1984787** — OS kernel parameters for Linux")
+
+def render_enhanced_parameter_engine():
+    """Enhanced parameter engine with export functionality"""
+    st.title("⚙️ Enhanced SAP Parameter Engine")
+    st.markdown("Generate and export SAP profile parameters with sizing recommendations")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        product = st.selectbox(
+            "SAP Product:",
+            ["S/4HANA", "ECC", "BW/4HANA", "Solution Manager"],
+            key="param_engine_product"
+        )
+    
+    with col2:
+        system_size = st.selectbox(
+            "System Size:",
+            ["Small", "Medium", "Large", "Custom"],
+            key="param_engine_size"
+        )
+    
+    with col3:
+        export_format = st.selectbox(
+            "Export Format:",
+            ["TXT", "INI", "JSON"],
+            key="param_engine_format"
+        )
+    
+    # Custom sizing inputs
+    if system_size == "Custom":
+        st.markdown("### Custom Sizing Parameters")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            custom_users = st.number_input("Concurrent Users:", min_value=10, value=200)
+        with col_b:
+            custom_memory = st.number_input("Memory (GB):", min_value=16, value=64)
+    
+    if st.button("🚀 Generate Parameters", type="primary"):
+        # Use existing get_parameter_recommendations function from Part 2
+        params_md = get_parameter_recommendations(product, system_size)
+        st.markdown(params_md)
+        
+        # Create downloadable parameter file
+        param_dict = {
+            "rdisp/wp_no_dia": 20,
+            "rdisp/wp_no_btc": 8,
+            "rdisp/wp_no_spo": 2,
+            "rdisp/wp_no_upd": 2,
+            "rdisp/max_wprun_time": 600,
+            "abap/heap_area_dia": 2000000000,
+            "login/fails_to_user_lock": 5,
+            "login/password_compliance_to_current_policy": 1,
+        }
+        
+        param_export = generate_parameter_export(param_dict, export_format.lower())
+        
+        st.download_button(
+            label=f"💾 Download Parameters ({export_format})",
+            data=param_export,
+            file_name=f"sap_parameters_{product.lower()}.{export_format.lower()}",
+            mime="text/plain"
+        )
+
+# End of Part 7
+# ============================================================
+# SAP HELP NAVIGATOR PRO - PART 8/11
+# Checklist Generator & HTML Report Generator
+# ============================================================
+
+import datetime
+import csv
+import io
+
+# ============================================================
+# CHECKLIST GENERATOR
+# ============================================================
+
+def generate_checklist(source: str, target: str, opts: dict = None) -> list:
+    """
+    Generate comprehensive pre-upgrade checklist
+    Based on context [1]
+    """
+    
+    if opts is None:
+        opts = {}
+    
+    items = [
+        # System Assessment
+        {
+            "cat": "System Assessment",
+            "icon": "🔍",
+            "pri": "Critical",
+            "task": "Run SAP Readiness Check",
+            "detail": "Execute /SDF/RC_START_CHECK — resolve ALL Critical and High findings before proceeding [1]",
+            "tool": "Transaction /SDF/RC_START_CHECK",
+            "note": "2913617"
+        },
+        {
+            "cat": "System Assessment",
+            "icon": "🔍",
+            "pri": "Critical",
+            "task": "Verify upgrade path in PAM",
+            "detail": "Check Product Availability Matrix for supported source to target path [1]",
+            "tool": "https://support.sap.com/pam",
+            "note": "2383326"
+        },
+        {
+            "cat": "System Assessment",
+            "icon": "🔍",
+            "pri": "High",
+            "task": "Check component compatibility",
+            "detail": "Use SAINT/SPAM to verify all add-ons are compatible with target release [1]",
+            "tool": "Transaction SAINT, SPAM",
+            "note": "1680045"
+        },
+        
+        # Technical Prerequisites
+        {
+            "cat": "Technical Prerequisites",
+            "icon": "⚙️",
+            "pri": "Critical",
+            "task": "Verify Unicode system",
+            "detail": "System must be Unicode. Check with transaction UCCHECK if conversion needed [1]",
+            "tool": "Transaction UCCHECK",
+            "note": "2399707"
+        },
+        {
+            "cat": "Technical Prerequisites",
+            "icon": "⚙️",
+            "pri": "Critical",
+            "task": "Update SAP kernel",
+            "detail": "Install minimum required kernel version for target release [1]",
+            "tool": "SPAM, kernel download from SWDC",
+            "note": "2186744"
+        },
+        {
+            "cat": "Technical Prerequisites",
+            "icon": "⚙️",
+            "pri": "Critical",
+            "task": "Validate database version",
+            "detail": "Ensure database version is certified for target SAP release [1]",
+            "tool": "PAM, database admin tools",
+            "note": "2379811"
+        },
+        
+        # Software Downloads
+        {
+            "cat": "Software Downloads",
+            "icon": "⬇️",
+            "pri": "Critical",
+            "task": "Download SUM (Software Update Manager)",
+            "detail": "Go to support.sap.com/swdc → Support Packages & Patches → SUM → download latest [1]",
+            "tool": "support.sap.com/swdc",
+            "note": "2568780"
+        },
+        {
+            "cat": "Software Downloads",
+            "icon": "⬇️",
+            "pri": "Critical",
+            "task": f"Download {target} installation media",
+            "detail": "Download all required installation exports, kernel, and database components [1]",
+            "tool": "SAP Maintenance Planner",
+            "note": "2383326"
+        },
+        {
+            "cat": "Software Downloads",
+            "icon": "⬇️",
+            "pri": "High",
+            "task": "Generate Stack.xml via Maintenance Planner",
+            "detail": "Use Maintenance Planner to generate complete stack XML with all required components [1]",
+            "tool": "https://support.sap.com/mp",
+            "note": "2383326"
+        },
+        
+        # Backup & Infrastructure
+        {
+            "cat": "Backup & Infrastructure",
+            "icon": "💾",
+            "pri": "Critical",
+            "task": "Complete full system backup",
+            "detail": "Database backup + file system backup. Verify restore capability before upgrade [1]",
+            "tool": "Database tools, BRBACKUP",
+            "note": "2186744"
+        },
+        {
+            "cat": "Backup & Infrastructure",
+            "icon": "💾",
+            "pri": "Critical",
+            "task": "Verify disk space",
+            "detail": "Check sufficient space for upgrade: Database (50% extra), /usr/sap (20GB+), SUM directory (50GB+) [1]",
+            "tool": "df -h, DB02",
+            "note": "2622660"
+        },
+        {
+            "cat": "Backup & Infrastructure",
+            "icon": "💾",
+            "pri": "High",
+            "task": "Document current system configuration",
+            "detail": "Export all profile parameters, RFC destinations, transport routes [1]",
+            "tool": "RZ10, SM59, STMS",
+            "note": "2186744"
+        },
+        
+        # Custom Code
+        {
+            "cat": "Custom Code",
+            "icon": "🔧",
+            "pri": "Critical",
+            "task": "Run ABAP Test Cockpit (ATC) checks",
+            "detail": "Analyze all custom code for S/4HANA incompatibilities. Generate adaptation backlog [1]",
+            "tool": "Transaction ATC, SAT",
+            "note": "2399707"
+        },
+        {
+            "cat": "Custom Code",
+            "icon": "🔧",
+            "pri": "High",
+            "task": "Review Simplification Item Catalog",
+            "detail": "Check all simplification items affecting custom code and business processes [1]",
+            "tool": "Transaction /SDF/RC_START_CHECK",
+            "note": "2769531"
+        },
+        
+        # Execution Phase
+        {
+            "cat": "Execution Phase",
+            "icon": "🚀",
+            "pri": "Critical",
+            "task": "Sandbox system test conversion",
+            "detail": "Perform complete upgrade test in sandbox. Document issues and resolution time [1]",
+            "tool": "SUM",
+            "note": "2568780"
+        },
+        {
+            "cat": "Execution Phase",
+            "icon": "🚀",
+            "pri": "Critical",
+            "task": "Lock all users before downtime",
+            "detail": "Use SM04 to check active users. Lock all users except upgrade team [1]",
+            "tool": "Transaction SM04, SU01",
+            "note": "2186744"
+        },
+        {
+            "cat": "Execution Phase",
+            "icon": "🚀",
+            "pri": "Critical",
+            "task": "Start SUM and monitor phases",
+            "detail": "Execute ./STARTUP and monitor via SUM Web UI: https://<host>:1129/lmsl/sumabap/<SID>/doc/ [1]",
+            "tool": "SUM Web UI",
+            "note": "2568780"
+        },
+        {
+            "cat": "Execution Phase",
+            "icon": "🚀",
+            "pri": "Critical",
+            "task": "Handle SPDD adjustments",
+            "detail": "Adjust Data Dictionary modifications during SPDD phase [1]",
+            "tool": "Transaction SPDD",
+            "note": "2186744"
+        },
+        {
+            "cat": "Execution Phase",
+            "icon": "🚀",
+            "pri": "Critical",
+            "task": "Handle SPAU adjustments",
+            "detail": "Adjust Repository object modifications during SPAU phase [1]",
+            "tool": "Transaction SPAU",
+            "note": "2186744"
+        },
+        
+        # Post-Upgrade
+        {
+            "cat": "Post-Upgrade Validation",
+            "icon": "✅",
+            "pri": "Critical",
+            "task": "Apply latest kernel patches",
+            "detail": "Install latest 64-bit Unicode kernel patches for target release [1]",
+            "tool": "SPAM",
+            "note": "2568780"
+        },
+        {
+            "cat": "Post-Upgrade Validation",
+            "icon": "✅",
+            "pri": "Critical",
+            "task": "Run RUTPOADAPT",
+            "detail": "Adjust customizing settings for new release [1]",
+            "tool": "Transaction SE38",
+            "note": "2399707"
+        },
+        {
+            "cat": "Post-Upgrade Validation",
+            "icon": "✅",
+            "pri": "High",
+            "task": "Performance validation",
+            "detail": "Check system performance using ST02, ST05, ST22 [1]",
+            "tool": "Transactions ST02, ST05, ST22",
+            "note": "941735"
+        },
+        {
+            "cat": "Post-Upgrade Validation",
+            "icon": "✅",
+            "pri": "High",
+            "task": "User Acceptance Testing (UAT)",
+            "detail": "Business users validate critical processes in upgraded system [1]",
+            "tool": "Test scripts, business scenarios",
+            "note": "2186744"
+        },
+    ]
+    
+    return items
+
+def export_checklist_csv(checklist: list) -> str:
+    """Export checklist to CSV format"""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow(["Category", "Priority", "Task", "Details", "Tool/Transaction", "SAP Note"])
+    
+    # Data rows
+    for item in checklist:
+        writer.writerow([
+            item.get("cat", ""),
+            item.get("pri", ""),
+            item.get("task", ""),
+            item.get("detail", ""),
+            item.get("tool", ""),
+            item.get("note", "")
+        ])
+    
+    return output.getvalue()
+
+# ============================================================
+# HTML REPORT GENERATOR
+# ============================================================
+
+def generate_html_report(
+    product: str,
+    question: str,
+    answer: str,
+    sources: list,
+    checklist: list
+) -> str:
+    """
+    Build a self-contained HTML report string
+    Based on context [1]
+    """
+    
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Build checklist HTML
+    checklist_html = ""
+    if checklist:
+        rows = ""
+        for item in checklist:
+            priority_color = {
+                "Critical": "#fee2e2",
+                "High": "#fef3c7",
+                "Medium": "#e0f2fe"
+            }.get(item.get("pri", "Medium"), "#f1f5f9")
+            
+            note_link = ""
+            if item.get("note"):
+                note_link = f'<a href="https://launchpad.support.sap.com/#/notes/{item["note"]}" target="_blank" style="color:#0070f3;text-decoration:none;">{item["note"]}</a>'
+            
+            rows += f"""
+            <tr style="background:{priority_color}">
+                <td style="padding:12px;border-bottom:1px solid #ddd;">{item.get("icon", "")} {item.get("cat", "")}</td>
+                <td style="padding:12px;border-bottom:1px solid #ddd;font-weight:600;">{item.get("pri", "")}</td>
+                <td style="padding:12px;border-bottom:1px solid #ddd;font-weight:500;">{item.get("task", "")}</td>
+                <td style="padding:12px;border-bottom:1px solid #ddd;">{item.get("detail", "")}</td>
+                <td style="padding:12px;border-bottom:1px solid #ddd;font-family:monospace;font-size:0.9rem;">{item.get("tool", "")}</td>
+                <td style="padding:12px;border-bottom:1px solid #ddd;">{note_link}</td>
+            </tr>
+            """
+        
+        checklist_html = f"""
+        <div class="section">
+            <h2>✅ Pre-Upgrade Checklist</h2>
+            <table style="width:100%;border-collapse:collapse;margin-top:20px;">
+                <thead>
+                    <tr style="background:#0070f3;color:white;">
+                        <th style="padding:12px;text-align:left;">Category</th>
+                        <th style="padding:12px;text-align:left;">Priority</th>
+                        <th style="padding:12px;text-align:left;">Task</th>
+                        <th style="padding:12px;text-align:left;">Details</th>
+                        <th style="padding:12px;text-align:left;">Tool</th>
+                        <th style="padding:12px;text-align:left;">SAP Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows}
+                </tbody>
+            </table>
+        </div>
+        """
+    
+    # Build sources HTML
+    sources_html = ""
+    if sources:
+        source_items = ""
+        for idx, src in enumerate(sources[:15], 1):
+            source_items += f"""
+            <div style="margin-bottom:12px;padding:10px;background:#f8fafc;border-left:3px solid #0070f3;">
+                <strong>[{idx}]</strong> {src.get("title", "Untitled")}
+                <br><span style="font-size:0.9rem;color:#666;">{src.get("url", "")}</span>
+            </div>
+            """
+        
+        sources_html = f"""
+        <div class="section">
+            <h2>🔗 Sources ({len(sources)})</h2>
+            {source_items}
+        </div>
+        """
+    
+    # Format answer with line breaks
+    answer_formatted = answer.replace("\n", "<br>")
+    
+    # Complete HTML document [1]
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>SAP Help Navigator Pro - Report</title>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                line-height: 1.6;
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 20px;
+                background: #f8fafc;
+                color: #1e293b;
+            }}
+            .header {{
+                background: linear-gradient(135deg, #0070f3 0%, #00c6ff 100%);
+                color: white;
+                padding: 30px;
+                border-radius: 12px;
+                margin-bottom: 30px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }}
+            .header h1 {{
+                margin: 0 0 10px 0;
+                font-size: 2rem;
+            }}
+            .header p {{
+                margin: 0;
+                opacity: 0.95;
+            }}
+            .section {{
+                background: white;
+                padding: 30px;
+                margin-bottom: 20px;
+                border-radius: 12px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }}
+            .section h2 {{
+                color: #0070f3;
+                margin-top: 0;
+                border-bottom: 2px solid #e2e8f0;
+                padding-bottom: 10px;
+            }}
+            .answer {{
+                font-size: 1.05rem;
+                line-height: 1.8;
+                color: #334155;
+            }}
+            a {{
+                color: #0070f3;
+                text-decoration: none;
+            }}
+            a:hover {{
+                text-decoration: underline;
+            }}
+            .footer {{
+                text-align: center;
+                color: #64748b;
+                padding: 20px;
+                font-size: 0.9rem;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🔷 SAP Help Navigator Pro</h1>
+            <p>Product: <strong>{product or "General SAP"}</strong> &nbsp;·&nbsp; {now}
+            &nbsp;·&nbsp; <a href="https://help.sap.com/docs" style="color:#fff">help.sap.com</a></p>
+        </div>
+        
+        <div class="section">
+            <h2>❓ Question</h2>
+            <p style="font-size:1.05rem;font-weight:500">{question}</p>
+        </div>
+        
+        <div class="section">
+            <h2>💡 Answer</h2>
+            <div class="answer">{answer_formatted}</div>
+        </div>
+        
+        {checklist_html}
+        
+        {sources_html}
+        
+        <div class="footer">
+            SAP Help Navigator Pro &nbsp;·&nbsp; {now}
+            &nbsp;·&nbsp; For internal use only
+            &nbsp;·&nbsp; <a href="https://help.sap.com/docs">help.sap.com</a>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return html
+
+# ============================================================
+# UI RENDERING FUNCTIONS
+# ============================================================
+
+def render_checklist_generator_tab():
+    """Render Checklist Generator tab [1]"""
+    st.title("✅ Pre-Upgrade Checklist Generator")
+    st.markdown("Generate comprehensive checklist based on upgrade path [1]")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        source = st.selectbox(
+            "Source System:",
+            ["ECC 6.0 EHP5", "ECC 6.0 EHP6", "ECC 6.0 EHP7", "ECC 6.0 EHP8",
+             "S/4HANA 2020", "S/4HANA 2021", "S/4HANA 2022"],
+            key="checklist_source"
+        )
+    
+    with col2:
+        target = st.selectbox(
+            "Target System:",
+            ["S/4HANA 2023", "S/4HANA 2025"],
+            key="checklist_target"
+        )
+    
+    # Additional options
+    st.markdown("### Additional Options")
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        include_custom_code = st.checkbox("Include custom code analysis steps", value=True)
+        include_infrastructure = st.checkbox("Include infrastructure checks", value=True)
+    
+    with col_b:
+        include_post_upgrade = st.checkbox("Include post-upgrade tasks", value=True)
+        include_testing = st.checkbox("Include UAT steps", value=True)
+    
+    if st.button("📋 Generate Checklist", type="primary"):
+        with st.spinner("Generating comprehensive checklist..."):
+            checklist = generate_checklist(source, target)
+            
+            # Store in session state for HTML report
+            st.session_state["last_checklist"] = checklist
+            
+            st.success(f"✅ Generated {len(checklist)} checklist items for {source} → {target}")
+            
+            # Display checklist by category
+            categories = {}
+            for item in checklist:
+                cat = item.get("cat", "Other")
+                if cat not in categories:
+                    categories[cat] = []
+                categories[cat].append(item)
+            
+            for cat, items in categories.items():
+                with st.expander(f"{items[0].get('icon', '📌')} {cat} ({len(items)} items)", expanded=True):
+                    for item in items:
+                        priority_color = {
+                            "Critical": "🔴",
+                            "High": "🟡",
+                            "Medium": "🟢"
+                        }.get(item.get("pri", "Medium"), "⚪")
+                        
+                        st.markdown(f"**{priority_color} {item.get('task', '')}** - {item.get('pri', '')}")
+                        st.markdown(f"_{item.get('detail', '')}_")
+                        st.markdown(f"🔧 Tool: `{item.get('tool', '')}`")
+                        if item.get("note"):
+                            st.markdown(f"📋 [SAP Note {item['note']}](https://launchpad.support.sap.com/#/notes/{item['note']})")
+                        st.markdown("---")
+            
+            # Export options
+            st.markdown("### 💾 Export Checklist")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                csv_data = export_checklist_csv(checklist)
+                st.download_button(
+                    label="📄 Download as CSV",
+                    data=csv_data,
+                    file_name=f"SAP_Checklist_{source.replace(' ', '_')}_to_{target.replace(' ', '_')}.csv",
+                    mime="text/csv"
+                )
+            
+            with col2:
+                json_data = json.dumps(checklist, indent=2)
+                st.download_button(
+                    label="📦 Download as JSON",
+                    data=json_data,
+                    file_name=f"SAP_Checklist_{source.replace(' ', '_')}_to_{target.replace(' ', '_')}.json",
+                    mime="application/json"
+                )
+
+def render_html_report_generator():
+    """Render HTML Report Generator section [1]"""
+    st.title("📄 HTML Report Generator")
+    st.markdown("Generate professional HTML reports with Q&A, sources, and checklists [1]")
+    
+    # Check if there's data to generate report from
+    if "last_qa" not in st.session_state:
+        st.info("ℹ️ Generate an upgrade plan or ask a question first to create an HTML report")
+        return
+    
+    last_qa = st.session_state.get("last_qa", {})
+    
+    st.markdown("### Report Contents")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        include_answer = st.checkbox("Include Q&A", value=True, disabled=True)
+        include_sources = st.checkbox("Include sources", value=True)
+    
+    with col2:
+        include_checklist = st.checkbox("Include checklist", value=True)
+    
+    if st.button("📄 Generate & Download HTML Report", type="primary", use_container_width=True):
+        checklist_data = st.session_state.get("last_checklist", []) if include_checklist else []
+        sources_data = last_qa.get("sources", []) if include_sources else []
+        
+        html_content = generate_html_report(
+            product=last_qa.get("product", "SAP"),
+            question=last_qa.get("question", "Upgrade Planning"),
+            answer=last_qa.get("answer", ""),
+            sources=sources_data,
+            checklist=checklist_data
+        )
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"SAP_Help_Navigator_Report_{timestamp}.html"
+        
+        st.download_button(
+            label="💾 Download HTML Report",
+            data=html_content,
+            file_name=filename,
+            mime="text/html",
+            use_container_width=True
+        )
+        
+        st.success("✅ HTML report generated successfully! [1]")
+        
+        # Preview
+        with st.expander("👁️ Preview Report"):
+            st.components.v1.html(html_content, height=600, scrolling=True)
+
+# End of Part 8
+# ============================================================
+# SAP HELP NAVIGATOR PRO - PART 9/11
+# Landscape Visualizer with Transport Routes
+# ============================================================
+
+import plotly.graph_objects as go
+import plotly.express as px
+from typing import List, Dict, Tuple
+
+# ============================================================
+# LANDSCAPE DATA STRUCTURES
+# ============================================================
+
+def create_sample_landscape() -> Dict:
+    """
+    Create sample SAP landscape structure
+    Based on context [1]
+    """
+    return {
+        "systems": [
+            {
+                "sid": "DEV",
+                "name": "Development",
+                "type": "DEV",
+                "release": "S/4HANA 2022",
+                "db": "HANA 2.0 SPS06",
+                "os": "RHEL 8.6",
+                "users": 50,
+                "criticality": "Low",
+                "position": (1, 3)
+            },
+            {
+                "sid": "QAS",
+                "name": "Quality Assurance",
+                "type": "QAS",
+                "release": "S/4HANA 2022",
+                "db": "HANA 2.0 SPS06",
+                "os": "RHEL 8.6",
+                "users": 100,
+                "criticality": "Medium",
+                "position": (2, 3)
+            },
+            {
+                "sid": "PRD",
+                "name": "Production",
+                "type": "PRD",
+                "release": "S/4HANA 2022",
+                "db": "HANA 2.0 SPS06",
+                "os": "RHEL 8.6",
+                "users": 500,
+                "criticality": "Critical",
+                "position": (3, 3)
+            },
+            {
+                "sid": "SBX",
+                "name": "Sandbox",
+                "type": "SBX",
+                "release": "S/4HANA 2023",
+                "db": "HANA 2.0 SPS07",
+                "os": "RHEL 9.0",
+                "users": 20,
+                "criticality": "Low",
+                "position": (1, 1)
+            },
+        ],
+        "transport_routes": [
+            {"from": "DEV", "to": "QAS", "type": "Standard"},
+            {"from": "QAS", "to": "PRD", "type": "Standard"},
+        ],
+        "interfaces": [
+            {"system": "PRD", "target": "SAP BW", "type": "RFC"},
+            {"system": "PRD", "target": "SAP PI", "type": "IDoc"},
+            {"system": "PRD", "target": "External API", "type": "REST"},
+        ]
+    }
+
+def calculate_upgrade_sequence(landscape: Dict) -> List[Dict]:
+    """
+    Calculate optimal upgrade sequence with downtime analysis
+    Based on context [1]
+    """
+    systems = landscape["systems"]
+    
+    # Sort by: Sandbox -> DEV -> QAS -> PRD
+    priority_order = {"SBX": 1, "DEV": 2, "QAS": 3, "PRD": 4}
+    
+    sorted_systems = sorted(
+        systems,
+        key=lambda x: priority_order.get(x["type"], 99)
+    )
+    
+    sequence = []
+    cumulative_downtime = 0
+    
+    for idx, system in enumerate(sorted_systems, 1):
+        # Estimate downtime based on system type and release
+        if system["type"] == "SBX":
+            downtime_hours = 4
+            business_impact = "None"
+        elif system["type"] == "DEV":
+            downtime_hours = 8
+            business_impact = "Low - Development only"
+        elif system["type"] == "QAS":
+            downtime_hours = 12
+            business_impact = "Medium - Testing delayed"
+        else:  # PRD
+            downtime_hours = 24
+            business_impact = "High - Business operations affected"
+        
+        cumulative_downtime += downtime_hours
+        
+        sequence.append({
+            "order": idx,
+            "sid": system["sid"],
+            "name": system["name"],
+            "current_release": system["release"],
+            "target_release": "S/4HANA 2023",
+            "downtime_hours": downtime_hours,
+            "cumulative_downtime": cumulative_downtime,
+            "business_impact": business_impact,
+            "prerequisites": get_upgrade_prerequisites(system),
+            "parallel_possible": system["type"] in ["SBX", "DEV"]
+        })
+    
+    return sequence
+
+def get_upgrade_prerequisites(system: Dict) -> List[str]:
+    """Get prerequisites for system upgrade"""
+    prereqs = []
+    
+    if system["type"] == "QAS":
+        prereqs.append("DEV system must be upgraded first")
+        prereqs.append("Transport all pending changes from DEV")
+    
+    if system["type"] == "PRD":
+        prereqs.append("QAS system must be upgraded and validated")
+        prereqs.append("Complete UAT in QAS environment")
+        prereqs.append("Business approval for downtime window")
+        prereqs.append("Full system backup completed")
+    
+    prereqs.append(f"Verify {system['db']} compatibility")
+    prereqs.append("Run SAP Readiness Check")
+    
+    return prereqs
+
+# ============================================================
+# VISUALIZATION FUNCTIONS
+# ============================================================
+
+def create_landscape_diagram(landscape: Dict) -> go.Figure:
+    """
+    Create interactive landscape visualization using Plotly
+    Based on context [1]
+    """
+    systems = landscape["systems"]
+    routes = landscape.get("transport_routes", [])
+    
+    # Create figure
+    fig = go.Figure()
+    
+    # Add system nodes
+    for system in systems:
+        x, y = system["position"]
+        
+        # Color by criticality
+        color_map = {
+            "Critical": "#dc2626",
+            "High": "#f59e0b",
+            "Medium": "#3b82f6",
+            "Low": "#10b981"
+        }
+        color = color_map.get(system["criticality"], "#6b7280")
+        
+        # Add node
+        fig.add_trace(go.Scatter(
+            x=[x],
+            y=[y],
+            mode="markers+text",
+            marker=dict(size=50, color=color, line=dict(width=2, color="white")),
+            text=system["sid"],
+            textposition="middle center",
+            textfont=dict(color="white", size=14, family="Arial Black"),
+            name=system["name"],
+            hovertemplate=(
+                f"<b>{system['name']} ({system['sid']})</b><br>"
+                f"Release: {system['release']}<br>"
+                f"Database: {system['db']}<br>"
+                f"OS: {system['os']}<br>"
+                f"Users: {system['users']}<br>"
+                f"Criticality: {system['criticality']}<br>"
+                "<extra></extra>"
+            )
+        ))
+    
+    # Add transport routes
+    for route in routes:
+        from_sys = next((s for s in systems if s["sid"] == route["from"]), None)
+        to_sys = next((s for s in systems if s["sid"] == route["to"]), None)
+        
+        if from_sys and to_sys:
+            x_from, y_from = from_sys["position"]
+            x_to, y_to = to_sys["position"]
+            
+            fig.add_trace(go.Scatter(
+                x=[x_from, x_to],
+                y=[y_from, y_to],
+                mode="lines",
+                line=dict(color="#94a3b8", width=3, dash="solid"),
+                hovertemplate=f"Transport Route: {route['from']} → {route['to']}<extra></extra>",
+                showlegend=False
+            ))
+            
+            # Add arrow annotation
+            fig.add_annotation(
+                x=x_to,
+                y=y_to,
+                ax=x_from,
+                ay=y_from,
+                xref="x",
+                yref="y",
+                axref="x",
+                ayref="y",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1.5,
+                arrowwidth=2,
+                arrowcolor="#94a3b8"
+            )
+    
+    # Update layout
+    fig.update_layout(
+        title={
+            "text": "🗺️ SAP Landscape Overview",
+            "x": 0.5,
+            "xanchor": "center",
+            "font": {"size": 20, "color": "#1e293b"}
+        },
+        xaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False,
+            range=[0, 4]
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False,
+            range=[0, 4]
+        ),
+        hovermode="closest",
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        showlegend=False,
+        height=500
+    )
+    
+    return fig
+
+def create_downtime_chart(sequence: List[Dict]) -> go.Figure:
+    """Create downtime analysis chart"""
+    
+    sids = [s["sid"] for s in sequence]
+    downtimes = [s["downtime_hours"] for s in sequence]
+    cumulative = [s["cumulative_downtime"] for s in sequence]
+    
+    fig = go.Figure()
+    
+    # Individual downtime bars
+    fig.add_trace(go.Bar(
+        name="Downtime per System",
+        x=sids,
+        y=downtimes,
+        marker_color="#3b82f6",
+        text=[f"{d}h" for d in downtimes],
+        textposition="outside"
+    ))
+    
+    # Cumulative line
+    fig.add_trace(go.Scatter(
+        name="Cumulative Downtime",
+        x=sids,
+        y=cumulative,
+        mode="lines+markers",
+        line=dict(color="#dc2626", width=3),
+        marker=dict(size=10),
+        text=[f"{c}h total" for c in cumulative],
+        textposition="top center",
+        yaxis="y2"
+    ))
+    
+    fig.update_layout(
+        title="⏱️ Upgrade Downtime Analysis",
+        xaxis_title="System",
+        yaxis_title="Individual Downtime (hours)",
+        yaxis2=dict(
+            title="Cumulative Downtime (hours)",
+            overlaying="y",
+            side="right"
+        ),
+        barmode="group",
+        hovermode="x unified",
+        height=400
+    )
+    
+    return fig
+
+# ============================================================
+# UI RENDERING FUNCTIONS
+# ============================================================
+
+def render_landscape_visualizer_tab():
+    """Render Landscape Visualizer tab [1]"""
+    st.title("🗺️ SAP Landscape Visualizer")
+    st.markdown("Visualize your SAP landscape with transport routes and upgrade sequencing [1]")
+    
+    # Option to use sample or custom landscape
+    use_sample = st.checkbox("Use sample landscape", value=True)
+    
+    if use_sample:
+        landscape = create_sample_landscape()
+    else:
+        st.info("Custom landscape builder coming soon. Using sample for now.")
+        landscape = create_sample_landscape()
+    
+    # Display landscape diagram
+    st.markdown("### 🏗️ Landscape Topology")
+    fig = create_landscape_diagram(landscape)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # System details table
+    st.markdown("---")
+    st.markdown("### 📊 System Details")
+    
+    systems_df = pd.DataFrame(landscape["systems"])
+    systems_display = systems_df[["sid", "name", "type", "release", "db", "os", "users", "criticality"]]
+    systems_display.columns = ["SID", "Name", "Type", "Release", "Database", "OS", "Users", "Criticality"]
+    
+    st.dataframe(systems_display, use_container_width=True)
+    
+    # Upgrade sequencing
+    st.markdown("---")
+    st.markdown("### 🔄 Recommended Upgrade Sequence")
+    
+    if st.button("🧮 Calculate Upgrade Sequence", type="primary"):
+        sequence = calculate_upgrade_sequence(landscape)
+        
+        # Display sequence
+        for step in sequence:
+            with st.expander(
+                f"Step {step['order']}: {step['sid']} - {step['name']} "
+                f"({step['downtime_hours']}h downtime)",
+                expanded=(step['order'] == 1)
+            ):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.metric("Current Release", step["current_release"])
+                    st.metric("Target Release", step["target_release"])
+                    st.metric("Downtime", f"{step['downtime_hours']} hours")
+                
+                with col2:
+                    st.metric("Cumulative Downtime", f"{step['cumulative_downtime']} hours")
+                    st.markdown(f"**Business Impact:** {step['business_impact']}")
+                    if step["parallel_possible"]:
+                        st.success("✅ Can run in parallel with other non-prod systems")
+                
+                st.markdown("**Prerequisites:**")
+                for prereq in step["prerequisites"]:
+                    st.markdown(f"- {prereq}")
+        
+        # Downtime chart
+        st.markdown("---")
+        downtime_fig = create_downtime_chart(sequence)
+        st.plotly_chart(downtime_fig, use_container_width=True)
+        
+        # Summary
+        total_downtime = sum(s["downtime_hours"] for s in sequence)
+        prd_downtime = next((s["downtime_hours"] for s in sequence if s["sid"] == "PRD"), 0)
+        
+        col_a, col_b, col_c = st.columns(3)
+        col_a.metric("Total Project Downtime", f"{total_downtime} hours")
+        col_b.metric("Production Downtime", f"{prd_downtime} hours")
+        col_c.metric("Number of Systems", len(sequence))
+
+# End of Part 9
+# ============================================================
+# SAP HELP NAVIGATOR PRO - PART 10/11
+# SUM Monitor & Guide Download Helper
+# ============================================================
+
+import re
+from datetime import datetime
+
+# ============================================================
+# SUM MONITOR
+# ============================================================
+
+def get_sum_phases() -> List[Dict]:
+    """
+    Get all SUM (Software Update Manager) phases
+    Based on context [1]
+    """
+    return [
+        {
+            "phase": "INITSUM",
+            "name": "Initialization",
+            "description": "Initial SUM setup and validation",
+            "typical_duration": "15-30 min",
+            "key_activities": [
+                "Extract SUM tool",
+                "Start SUM UI",
+                "Upload stack.xml",
+                "Validate prerequisites"
+            ],
+            "critical": True
+        },
+        {
+            "phase": "PRECONFIG",
+            "name": "Pre-Configuration",
+            "description": "System preparation and configuration checks",
+            "typical_duration": "30-60 min",
+            "key_activities": [
+                "Check system parameters",
+                "Validate disk space",
+                "Check database consistency",
+                "Verify kernel compatibility"
+            ],
+            "critical": True
+        },
+        {
+            "phase": "EXTRACT_PAT",
+            "name": "Extract Archives",
+            "description": "Extract software archives to file system",
+            "typical_duration": "2-4 hours",
+            "key_activities": [
+                "Extract SAR files",
+                "Unpack installation media",
+                "Verify checksums"
+            ],
+            "critical": False
+        },
+        {
+            "phase": "EU_CLONE",
+            "name": "Clone System",
+            "description": "Create shadow system for upgrade",
+            "typical_duration": "4-8 hours",
+            "key_activities": [
+                "Clone SAP system",
+                "Clone database schema",
+                "Setup shadow instance"
+            ],
+            "critical": True
+        },
+        {
+            "phase": "EU_IMPORT",
+            "name": "Import ABAP",
+            "description": "Import new ABAP code to shadow system",
+            "typical_duration": "6-12 hours",
+            "key_activities": [
+                "Import BASIS components",
+                "Import application components",
+                "Generate ABAP loads"
+            ],
+            "critical": True
+        },
+        {
+            "phase": "SPDD_SPAU",
+            "name": "Modification Adjustment",
+            "description": "Adjust dictionary and repository modifications",
+            "typical_duration": "2-8 hours (manual)",
+            "key_activities": [
+                "Execute SPDD transaction",
+                "Adjust data dictionary changes",
+                "Execute SPAU transaction",
+                "Adjust repository modifications"
+            ],
+            "critical": True,
+            "requires_manual": True
+        },
+        {
+            "phase": "DOWNTIME",
+            "name": "Downtime Start",
+            "description": "Begin production downtime window",
+            "typical_duration": "N/A",
+            "key_activities": [
+                "Stop application servers",
+                "Lock all users",
+                "Begin downtime monitoring"
+            ],
+            "critical": True
+        },
+        {
+            "phase": "EU_SWITCH",
+            "name": "Switch to Shadow",
+            "description": "Switch from original to shadow system",
+            "typical_duration": "1-2 hours",
+            "key_activities": [
+                "Stop original system",
+                "Activate shadow system",
+                "Update system profiles"
+            ],
+            "critical": True
+        },
+        {
+            "phase": "FINALIZE",
+            "name": "Finalization",
+            "description": "Complete upgrade and cleanup",
+            "typical_duration": "1-2 hours",
+            "key_activities": [
+                "Remove shadow repository",
+                "Update kernel",
+                "Generate new profiles",
+                "System consistency checks"
+            ],
+            "critical": True
+        },
+        {
+            "phase": "POSTPROC",
+            "name": "Post-Processing",
+            "description": "Post-upgrade activities",
+            "typical_duration": "30-60 min",
+            "key_activities": [
+                "Apply latest patches",
+                "Run RUTPOADAPT",
+                "Update client settings",
+                "Start application servers"
+            ],
+            "critical": False
+        }
+    ]
+
+def get_sum_troubleshooting_tips() -> Dict[str, str]:
+    """Common SUM issues and resolutions [1]"""
+    return {
+        "Phase stuck": "Check SUM logs in /usr/sap/<SID>/SUM/abap/log/ - Look for ERROR or FATAL entries [1]",
+        "EU_CLONE fails": "Verify disk space. Check database connectivity. Review sumabap_clone.log [1]",
+        "SPDD timeout": "Increase timeout in SUM parameters. Split adjustments into smaller batches [1]",
+        "EU_IMPORT errors": "Check tp log files. Verify all archives extracted correctly [1]",
+        "Memory shortage": "Increase Java heap size in SUM startup script (-Xmx parameter) [1]",
+        "Database locks": "Check for long-running database queries. May need DBA intervention [1]",
+        "Cannot access SUM UI": "Verify port 1129 is open. Check https://<host>:1129/lmsl/sumabap/<SID>/doc/ [1]"
+    }
+
+# ============================================================
+# GUIDE DOWNLOAD HELPER
+# ============================================================
+
+def get_guide_download_instructions(doc_type: str, product: str, version: str) -> str:
+    """
+    Generate instructions for downloading SAP guides
+    Based on context [1]
+    """
+    
+    base_instructions = f"""
+## 📚 How to Download {doc_type} for {product} {version}
+
+### Method 1: SAP Help Portal (Recommended) [1]
+
+1. **Navigate to SAP Help Portal:**
+   - Go to: https://help.sap.com/docs
+   - Or direct link: https://help.sap.com/viewer/product/{product.replace(' ', '_')}/{version}/en-US
+
+2. **Find Documentation:**
+   - Search for "{doc_type}"
+   - Or browse: Product Documentation → {product} → {version}
+
+3. **Download PDF:**
+   - Click on document title
+   - Look for "Download" or "PDF" icon (usually top-right)
+   - Select language (English, German, etc.)
+   - Click "Download PDF"
+
+---
+
+### Method 2: SAP Support Portal (S-User Required) [1]
+
+1. **Login to SAP Support:**
+   - Go to: https://support.sap.com/
+   - Login with your S-user credentials
+
+2. **Navigate to Software Downloads:**
+   - Software Downloads → Support Packages and Patches
+   - Or: https://support.sap.com/swdc
+
+3. **Find Product:**
+   - Search for: {product}
+   - Select version: {version}
+   - Navigate to: Documentation → {doc_type}
+
+4. **Download:**
+   - Click download link
+   - Save to local directory
+
+---
+
+### Method 3: SAP ONE Support Launchpad [1]
+
+1. **Access Launchpad:**
+   - Go to: https://launchpad.support.sap.com/
+   - Login with S-user
+
+2. **Search Documentation:**
+   - Use search bar: "{product} {version} {doc_type}"
+   - Filter by: Document Type = "Guide/Manual"
+
+3. **Download:**
+   - Click on result
+   - Select "Download PDF"
+
+---
+
+### Quick Links:
+
+"""
+    
+    # Add product-specific links
+    if "S/4HANA" in product:
+        base_instructions += """
+- **Installation Guide:** https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/installation
+- **Upgrade Guide:** https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/upgrade
+- **Operations Guide:** https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE/operations
+- **SAP Notes:** https://launchpad.support.sap.com/#/notes/
+"""
+    elif "HANA" in product:
+        base_instructions += """
+- **HANA Administration:** https://help.sap.com/docs/SAP_HANA_PLATFORM/admin
+- **Installation Guide:** https://help.sap.com/docs/SAP_HANA_PLATFORM/installation
+- **Update Guide:** https://help.sap.com/docs/SAP_HANA_PLATFORM/update
+"""
+    
+    base_instructions += """
+---
+
+### Tips:
+
+- **Bookmark frequently used guides** for quick access [1]
+- **Check SAP Notes** for latest corrections to documentation [1]
+- **Download offline** if working in restricted environments [1]
+- **Version matters**: Always download guide matching your exact release [1]
+
+---
+
+### Troubleshooting:
+
+**Can't find document?**
+- Verify you have correct product name and version
+- Check if you need S-user access
+- Try searching in multiple languages
+
+**Download fails?**
+- Check your internet connection
+- Try different browser
+- Disable popup blockers
+- Contact SAP Support if persistent issues
+
+**Need specific section?**
+- Use PDF bookmarks/table of contents
+- Most guides have detailed index
+- Search within PDF (Ctrl+F)
+"""
+    
+    return base_instructions
+
+# ============================================================
+# UI RENDERING FUNCTIONS
+# ============================================================
+
+def render_sum_monitor_tab():
+    """Render SUM Monitor tab [1]"""
+    st.title("📊 SUM (Software Update Manager) Monitor")
+    st.markdown("Track SUM phases and troubleshoot upgrade issues [1]")
+    
+    # SUM UI Access
+    st.markdown("### 🌐 SUM Web UI Access")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        sum_host = st.text_input("SUM Host:", placeholder="hostname.domain.com", key="sum_host")
+    with col2:
+        sum_sid = st.text_input("System SID:", placeholder="S4D", key="sum_sid")
+    
+    if sum_host and sum_sid:
+        sum_url = f"https://{sum_host}:1129/lmsl/sumabap/{sum_sid}/doc/"
+        st.success(f"🔗 SUM Web UI: [{sum_url}]({sum_url}) [1]")
+        st.info(f"📁 Log Location: `/usr/sap/{sum_sid}/SUM/abap/log/` [1]")
+    
+    # Phase overview
+    st.markdown("---")
+    st.markdown("### 📋 SUM Phases Overview")
+    
+    phases = get_sum_phases()
+    
+    for phase in phases:
+        icon = "🔴" if phase.get("critical") else "🟢"
+        manual_flag = " ⚠️ (Requires Manual Action)" if phase.get("requires_manual") else ""
+        
+        with st.expander(
+            f"{icon} {phase['phase']} - {phase['name']}{manual_flag}",
+            expanded=False
+        ):
+            st.markdown(f"**Description:** {phase['description']}")
+            st.markdown(f"**Typical Duration:** {phase['typical_duration']}")
+            
+            st.markdown("**Key Activities:**")
+            for activity in phase["key_activities"]:
+                st.markdown(f"- {activity}")
+            
+            if phase.get("requires_manual"):
+                st.warning("⚠️ This phase requires manual intervention [1]")
+    
+    # Troubleshooting guide
+    st.markdown("---")
+    st.markdown("### 🔧 Common Issues & Solutions")
+    
+    tips = get_sum_troubleshooting_tips()
+    
+    issue = st.selectbox(
+        "Select Issue:",
+        list(tips.keys()),
+        key="sum_issue"
+    )
+    
+    if issue:
+        st.info(f"**Solution:** {tips[issue]}")
+    
+    # Log analysis helper
+    st.markdown("---")
+    st.markdown("### 🔍 Log Analysis Helper")
+    
+    log_content = st.text_area(
+        "Paste SUM log excerpt (optional):",
+        height=200,
+        placeholder="Paste log lines here for quick analysis...",
+        key="sum_log"
+    )
+    
+    if log_content and st.button("🔍 Analyze Log", key="analyze_sum_log"):
+        # Simple log analysis
+        errors = [line for line in log_content.split("\n") if "ERROR" in line.upper() or "FATAL" in line.upper()]
+        warnings = [line for line in log_content.split("\n") if "WARNING" in line.upper() or "WARN" in line.upper()]
+        
+        if errors:
+            st.error(f"❌ Found {len(errors)} ERROR/FATAL entries:")
+            for err in errors[:5]:  # Show first 5
+                st.code(err, language="log")
+        
+        if warnings:
+            st.warning(f"⚠️ Found {len(warnings)} WARNING entries:")
+            for warn in warnings[:3]:  # Show first 3
+                st.code(warn, language="log")
+        
+        if not errors and not warnings:
+            st.success("✅ No obvious errors or warnings detected in provided log excerpt")
+
+def render_guide_downloader_tab():
+    """Render Guide Download Helper tab [1]"""
+    st.title("📚 SAP Guide Download Helper")
+    st.markdown("Step-by-step instructions to download SAP documentation [1]")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        product = st.selectbox(
+            "SAP Product:",
+            ["S/4HANA", "SAP HANA", "NetWeaver", "BW/4HANA", "Solution Manager"],
+            key="guide_product"
+        )
+    
+    with col2:
+        version = st.text_input(
+            "Version:",
+            placeholder="e.g., 2023, 2.0 SPS07",
+            key="guide_version"
+        )
+    
+    with col3:
+        doc_type = st.selectbox(
+            "Document Type:",
+            [
+                "Installation Guide",
+                "Upgrade Guide",
+                "Master Guide",
+                "Operations Guide",
+                "Security Guide",
+                "High Availability Guide",
+                "Performance Guide",
+                "Configuration Guide"
+            ],
+            key="guide_doc_type"
+        )
+    
+    if st.button("📖 Generate Download Instructions", type="primary"):
+        if not version:
+            st.warning("Please enter a version number")
+        else:
+            instructions = get_guide_download_instructions(doc_type, product, version)
+            st.markdown(instructions)
+            
+            # Download as text file
+            st.download_button(
+                label="💾 Download Instructions as TXT",
+                data=instructions,
+                file_name=f"SAP_{product.replace(' ', '_')}_{version}_{doc_type.replace(' ', '_')}_Download.txt",
+                mime="text/plain"
+            )
+
+# End of Part 10
+# ============================================================
+# SAP HELP NAVIGATOR PRO - PART 11/11
+# Gemini Search, Batch Q&A & Main Integration
+# ============================================================
+
+import google.generativeai as genai
+from typing import List, Dict, Optional
+import time
+
+# ============================================================
+# GEMINI API INTEGRATION
+# ============================================================
+
+def initialize_gemini(api_key: str) -> bool:
+    """Initialize Google Gemini API [1]"""
+    try:
+        genai.configure(api_key=api_key)
+        return True
+    except Exception as e:
+        st.error(f"Failed to initialize Gemini API: {e}")
+        return False
+
+def search_sap_docs_with_gemini(
+    query: str,
+    product: str = "SAP",
+    api_key: str = None
+) -> Dict:
+    """
+    Search SAP documentation using Gemini API
+    Based on context [1]
+    """
+    
+    if not api_key:
+        return {
+            "success": False,
+            "error": "API key required",
+            "answer": None
+        }
+    
+    try:
+        if not initialize_gemini(api_key):
+            return {"success": False, "error": "API initialization failed"}
+        
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # Craft SAP-specific prompt
+        prompt = f"""
+        You are an expert SAP consultant with deep knowledge of {product} documentation.
+        
+        Question: {query}
+        
+        Please provide a comprehensive answer that includes:
+        1. Direct answer to the question
+        2. Relevant SAP transaction codes (if applicable)
+        3. Key SAP Notes that should be referenced
+        4. Step-by-step instructions (if applicable)
+        5. Best practices and recommendations
+        
+        Format your response in a clear, structured manner with headings and bullet points.
+        """
+        
+        response = model.generate_content(prompt)
+        
+        return {
+            "success": True,
+            "answer": response.text,
+            "query": query,
+            "product": product,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "answer": None
+        }
+
+# ============================================================
+# BATCH Q&A
+# ============================================================
+
+def process_batch_questions(
+    questions: List[str],
+    product: str,
+    api_key: str
+) -> List[Dict]:
+    """
+    Process multiple questions in batch
+    Based on context [1]
+    """
+    results = []
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    for idx, question in enumerate(questions):
+        status_text.text(f"Processing question {idx + 1} of {len(questions)}...")
+        
+        result = search_sap_docs_with_gemini(question, product, api_key)
+        results.append({
+            "question": question,
+            "answer": result.get("answer", "Error processing question"),
+            "success": result.get("success", False),
+            "error": result.get("error")
+        })
+        
+        progress_bar.progress((idx + 1) / len(questions))
+        
+        # Rate limiting - wait 1 second between requests
+        if idx < len(questions) - 1:
+            time.sleep(1)
+    
+    status_text.text("✅ Batch processing complete!")
+    return results
+
+def export_batch_results(results: List[Dict], format_type: str = "markdown") -> str:
+    """Export batch Q&A results [1]"""
+    
+    if format_type == "markdown":
+        output = "# SAP Batch Q&A Results\n\n"
+        output += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        output += "---\n\n"
+        
+        for idx, result in enumerate(results, 1):
+            output += f"## Question {idx}\n\n"
+            output += f"**Q:** {result['question']}\n\n"
+            
+            if result['success']:
+                output += f"**A:**\n\n{result['answer']}\n\n"
+            else:
+                output += f"**Error:** {result.get('error', 'Unknown error')}\n\n"
+            
+            output += "---\n\n"
+        
+        return output
+    
+    elif format_type == "json":
+        return json.dumps(results, indent=2)
+    
+    else:
+        return str(results)
+
+# ============================================================
+# UI RENDERING FUNCTIONS
+# ============================================================
+
+def render_gemini_search_tab():
+    """Render Gemini-powered search tab [1]"""
+    st.title("🔍 AI-Powered SAP Search (Gemini)")
+    st.markdown("Ask questions about SAP and get intelligent answers powered by Google Gemini [1]")
+    
+    # API Key input
+    st.markdown("### 🔑 API Configuration")
+    api_key = st.text_input(
+        "Google Gemini API Key:",
+        type="password",
+        help="Get your API key from https://makersuite.google.com/app/apikey",
+        key="gemini_api_key"
+    )
+    
+    if not api_key:
+        st.info("ℹ️ Enter your Google Gemini API key to use AI-powered search")
+        st.markdown("""
+        **How to get API key:**
+        1. Visit https://makersuite.google.com/app/apikey
+        2. Sign in with Google account
+        3. Click "Create API Key"
+        4. Copy and paste above
+        """)
+        return
+    
+    # Question input
+    st.markdown("---")
+    st.markdown("### ❓ Ask Your Question")
+    
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        question = st.text_area(
+            "Enter your SAP question:",
+            placeholder="e.g., How do I configure RFC destinations in S/4HANA?",
+            height=100,
+            key="gemini_question"
+        )
+    
+    with col2:
+        product = st.selectbox(
+            "Product Context:",
+            ["SAP General", "S/4HANA", "SAP HANA", "NetWeaver", "BW/4HANA"],
+            key="gemini_product"
+        )
+    
+    if st.button("🚀 Search with AI", type="primary", disabled=not question):
+        with st.spinner("🤔 Searching SAP documentation with Gemini AI..."):
+            result = search_sap_docs_with_gemini(question, product, api_key)
+            
+            if result["success"]:
+                st.success("✅ Answer generated successfully!")
+                
+                # Display answer
+                st.markdown("### 💡 Answer")
+                st.markdown(result["answer"])
+                
+                # Store for HTML report
+                st.session_state["last_qa"] = {
+                    "product": product,
+                    "question": question,
+                    "answer": result["answer"],
+                    "sources": []
+                }
+                
+                # Download option
+                st.download_button(
+                    label="💾 Download Answer",
+                    data=result["answer"],
+                    file_name=f"SAP_Answer_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown"
+                )
+            else:
+                st.error(f"❌ Error: {result.get('error', 'Unknown error')}")
+
+def render_batch_qa_tab():
+    """Render Batch Q&A tab [1]"""
+    st.title("📦 Batch Question Processing")
+    st.markdown("Process multiple SAP questions at once with AI [1]")
+    
+    # API Key
+    api_key = st.text_input(
+        "Google Gemini API Key:",
+        type="password",
+        key="batch_api_key"
+    )
+    
+    if not api_key:
+        st.info("ℹ️ Enter your Google Gemini API key to use batch processing")
+        return
+    
+    st.markdown("---")
+    
+    # Input methods
+    input_method = st.radio(
+        "Input Method:",
+        ["Enter manually", "Upload file"],
+        horizontal=True
+    )
+    
+    questions = []
+    
+    if input_method == "Enter manually":
+        questions_text = st.text_area(
+            "Enter questions (one per line):",
+            height=200,
+            placeholder="How to configure STMS?\nWhat is SAP Note 2568780?\nHow to check kernel version?",
+            key="batch_questions"
+        )
+        
+        if questions_text:
+            questions = [q.strip() for q in questions_text.split("\n") if q.strip()]
+    
+    else:
+        uploaded_file = st.file_uploader(
+            "Upload text file with questions (one per line):",
+            type=["txt"],
+            key="batch_file"
+        )
+        
+        if uploaded_file:
+            content = uploaded_file.read().decode("utf-8")
+            questions = [q.strip() for q in content.split("\n") if q.strip()]
+    
+    if questions:
+        st.success(f"✅ {len(questions)} questions loaded")
+        
+        with st.expander("📋 Preview Questions"):
+            for idx, q in enumerate(questions, 1):
+                st.markdown(f"{idx}. {q}")
+    
+    # Process batch
+    if questions and st.button("🚀 Process Batch", type="primary"):
+        st.markdown("### 📊 Processing Progress")
+        
+        product = st.selectbox(
+            "Product Context:",
+            ["SAP General", "S/4HANA", "SAP HANA"],
+            key="batch_product"
+        )
+        
+        results = process_batch_questions(questions, product, api_key)
+        
+        # Display results
+        st.markdown("---")
+        st.markdown("### ✅ Results")
+        
+        for idx, result in enumerate(results, 1):
+            with st.expander(f"Q{idx}: {result['question']}", expanded=(idx == 1)):
+                if result['success']:
+                    st.markdown(result['answer'])
+                else:
+                    st.error(f"Error: {result.get('error')}")
+        
+        # Export options
+        st.markdown("---")
+        st.markdown("### 💾 Export Results")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            markdown_export = export_batch_results(results, "markdown")
+            st.download_button(
+                label="📄 Download as Markdown",
+                data=markdown_export,
+                file_name=f"SAP_Batch_QA_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown"
+            )
+        
+        with col2:
+            json_export = export_batch_results(results, "json")
+            st.download_button(
+                label="📦 Download as JSON",
+                data=json_export,
+                file_name=f"SAP_Batch_QA_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
+
+# ============================================================
+# UPDATED MAIN FUNCTION (Integrates all 11 parts)
+# ============================================================
+
+def main():
+    """
+    Main application entry point - Updated to include all features
+    Based on context [1]
+    """
+    
+    # Initialize session state
+    if "deployment_type" not in st.session_state:
+        st.session_state.deployment_type = "On-Premise"
+    
+    # Render sidebar
+    page = render_sidebar()
+    
+    # Route to appropriate page
+    if page == "🏠 Home":
+        render_home_page()
+        
+    elif page == "📅 Release Calendar":
+        display_release_calendar()
+        
+    elif page == "🔄 Upgrade Planner":
+        render_upgrade_planner()
+        
+    elif page == "🌥️ RISE Migration":
+        render_rise_migration_page()
+        
+    elif page == "⚙️ Parameter Advisor":
+        render_parameter_advisor()
+        
+    elif page == "📐 Sizing Calculator":
+        render_sizing_calculator()
+        
+    elif page == "📚 Resources":
+        # Resources page with multiple tabs
+        st.title("📚 SAP Resources & Tools")
+        
+        tabs = st.tabs([
+            "📖 Documentation",
+            "🔄 Upgrade Matrix",
+            "🔍 Compatibility",
+            "🐧 OS Parameters",
+            "✅ Checklist",
+            "📄 Reports",
+            "🗺️ Landscape",
+            "📊 SUM Monitor",
+            "📚 Guide Helper",
+            "🔍 AI Search",
+            "📦 Batch Q&A"
+        ])
+        
+        with tabs[0]:  # Documentation
+            st.markdown("""
+            ### Official SAP Resources
+            - [SAP Help Portal](https://help.sap.com)
+            - [SAP Support Portal](https://support.sap.com)
+            - [SAP PAM](https://support.sap.com/pam)
+            - [SAP Community](https://community.sap.com)
+            - [SAP Learning Hub](https://learning.sap.com)
+            """)
+        
+        with tabs[1]:  # Upgrade Matrix
+            render_upgrade_matrix_tab()
+        
+        with tabs[2]:  # Compatibility Checker
+            render_compatibility_checker_tab()
+        
+        with tabs[3]:  # OS Parameters
+            render_os_parameters_tab()
+        
+        with tabs[4]:  # Checklist Generator
+            render_checklist_generator_tab()
+        
+        with tabs[5]:  # HTML Reports
+            render_html_report_generator()
+        
+        with tabs[6]:  # Landscape Visualizer
+            render_landscape_visualizer_tab()
+        
+        with tabs[7]:  # SUM Monitor
+            render_sum_monitor_tab()
+        
+        with tabs[8]:  # Guide Downloader
+            render_guide_downloader_tab()
+        
+        with tabs[9]:  # Gemini Search
+            render_gemini_search_tab()
+        
+        with tabs[10]:  # Batch Q&A
+            render_batch_qa_tab()
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style='text-align: center; color: gray; padding: 20px;'>
+        SAP Help Navigator Pro v3.0 Complete Edition | 
+        Release calendar (2023 → 2025, no 2024) [1] | 
+        All deployment types | AI-powered search | 
+        11 comprehensive modules
+    </div>
+    """, unsafe_allow_html=True)
+
+# End of Part 11 - Application Complete!
+
 if __name__ == "__main__":
     main()
 
-# End of Part 5
+
