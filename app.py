@@ -2628,7 +2628,36 @@ def create_downtime_comparison(selected_roadmaps: List[str]) -> go.Figure:
 # ============================================================
 # ENHANCED UI RENDERING FUNCTIONS
 # ============================================================
+# ============================================================
+# LANDSCAPE DATA STRUCTURES
+# ============================================================
 
+def create_sample_landscape() -> Dict:
+    """Create sample SAP landscape structure [1]"""
+    return {
+        "systems": [
+            {"sid": "DEV", "name": "Development", "type": "DEV", "role": "Development",
+             "release": "S/4HANA 2022", "db": "HANA 2.0 SPS06", "os": "RHEL 8.6",
+             "users": 50, "criticality": "Low", "position": (1, 3)},
+            {"sid": "QAS", "name": "Quality Assurance", "type": "QAS", "role": "Quality Assurance",
+             "release": "S/4HANA 2022", "db": "HANA 2.0 SPS06", "os": "RHEL 8.6",
+             "users": 100, "criticality": "Medium", "position": (2, 3)},
+            {"sid": "PRD", "name": "Production", "type": "PRD", "role": "Production",
+             "release": "S/4HANA 2022", "db": "HANA 2.0 SPS06", "os": "RHEL 8.6",
+             "users": 500, "criticality": "Critical", "position": (3, 3)},
+            {"sid": "SBX", "name": "Sandbox", "type": "SBX", "role": "Sandbox",
+             "release": "S/4HANA 2023", "db": "HANA 2.0 SPS07", "os": "RHEL 9.0",
+             "users": 20, "criticality": "Low", "position": (1, 1)},
+        ],
+        "transport_routes": [
+            {"from": "DEV", "to": "QAS", "type": "Standard"},
+            {"from": "QAS", "to": "PRD", "type": "Standard"},
+        ],
+        "interfaces": [
+            {"system": "PRD", "target": "SAP BW", "type": "RFC"},
+            {"system": "PRD", "target": "SAP PI", "type": "IDoc"},
+        ]
+    }
 def render_landscape_visualizer_tab():
     """Enhanced Landscape Visualizer with source/target selection [1]"""
     st.title("🗺️ SAP Landscape Visualizer & Upgrade Roadmap Planner")
