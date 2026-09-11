@@ -1706,7 +1706,7 @@ def generate_html_report(
 
             note_html = (
                 "<a href='https://launchpad.support.sap.com"
-                f"/#/notes/{item[\"note\"]}' target='_blank'>"
+                f"/#/notes/{item['note']}' target='_blank'>"
                 f"{item['note']}</a>"
             ) if item.get("note") else "—"
 
