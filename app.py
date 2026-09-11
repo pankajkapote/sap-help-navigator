@@ -847,6 +847,991 @@ def extract_doc_content(url: str) -> dict:
 # SAP Help Navigator Pro
 # ============================================================
 
+# ============================================================
+# AI ANSWER ENGINE
+# ============================================================
+def get_ai_answer(
+    question: str,
+    context: str,
+    api_key: str,
+    product: str = ""
+) -> str:
+    """
+    Generate answer using Gemini AI when API key is available.
+    Falls back to rule-based answer generation if AI is unavailable.
+    """
+    if api_key and GENAI_AVAILABLE:
+        try:
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+
+            prompt = (
+                "You are a senior SAP Technical Architect with 20+ years of experience.\n"
+                "You specialize in SAP upgrades, installations, system administration,\n"
+                "basis operations, prerequisites, dependencies, and best practices.\n\n"
+                f"Product context: {product or 'General SAP'}\n\n"
+                "STRICT INSTRUCTIONS:\n"
+                "- Use ONLY the provided SAP documentation context\n"
+                "- Do not invent unsupported facts\n"
+                "- Format with **bold headings**, numbered steps, and bullet lists\n"
+                "- Use warning, prerequisite, note, and reference markers\n"
+                "- Include SAP Note numbers when relevant\n"
+                "- Use code blocks for commands and parameters where useful\n"
+                "- Be practical and action-oriented\n"
+                "- If data is missing, clearly say it is not in the context\n\n"
+                "--- SAP DOCUMENTATION CONTEXT ---\n"
+                f"{context[:7000]}\n"
+                "--- END CONTEXT ---\n\n"
+                f"Question: {question}\n\n"
+                "Provide a detailed, structured answer:"
+            )
+
+            response = model.generate_content(prompt)
+            if hasattr(response, "text") and response.text:
+                return response.text
+
+            return _rule_based_answer(question, context, product)
+
+        except Exception as e:
+            err      = str(e)
+            fallback = _rule_based_answer(question, context, product)
+
+            if "quota" in err.lower() or "limit" in err.lower():
+                return (
+                    fallback
+                    + "\n\n> ⚠️ *Gemini API rate limit reached. "
+                      "Showing rule-based answer instead.*"
+                )
+
+            return fallback + f"\n\n> ⚠️ *AI unavailable: {err[:100]}*"
+
+    return _rule_based_answer(question, context, product)
+
+
+# ============================================================
+# RULE-BASED ANSWER GENERATOR
+# ============================================================
+def _rule_based_answer(
+    question: str,
+    context: str,
+    product: str = ""
+) -> str:
+    """
+    Fallback answer engine using keyword-based response templates
+    and extracted documentation snippets.
+    """
+    q     = question.lower()
+    lines = [
+        l.strip() for l in context.split("\n")
+        if l.strip() and len(l.strip()) > 25
+    ]
+
+    def relevant(keywords: list) -> list:
+        return [
+            l for l in lines
+            if any(k in l.lower() for k in keywords)
+        ][:12]
+
+    # --------------------------------------------------------
+    # Upgrade Path
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "upgrade path", "upgrade route", "migration path",
+        "how to upgrade", "upgrade from", "target release",
+        "upgrade scenario"
+    ]):
+        hits   = relevant([
+            "upgrade", "migration", "path",
+            "release", "target", "version", "sps", "sp"
+        ])
+        answer = f"## 🔄 Upgrade Path — {product}\n\n"
+
+        if hits:
+            answer += (
+                "**From SAP documentation:**\n"
+                + "\n".join(f"- {h}" for h in hits)
+                + "\n\n"
+            )
+
+        answer += (
+            "\n### Supported SAP Upgrade Scenarios\n\n"
+            "| Scenario | Description | Main Tool |\n"
+            "|---|---|---|\n"
+            "| **EHP Upgrade** | ECC to higher Enhancement Package | SUM |\n"
+            "| **Release Upgrade** | S/4HANA X to S/4HANA Y | SUM |\n"
+            "| **System Conversion** | ECC / AnyDB to S/4HANA + HANA | SUM + DMO |\n"
+            "| **Greenfield** | Fresh implementation | SWPM |\n"
+            "| **Selective Transition** | Partial migration / carve-out | Partner tooling |\n\n"
+            "### Recommended Approach\n"
+            "1. Run **SAP Readiness Check** using `/SDF/RC_START_CHECK`\n"
+            "2. Validate supported path in **Product Availability Matrix (PAM)**\n"
+            "3. Generate **Stack.xml** with SAP Maintenance Planner\n"
+            "4. Use **SUM** for technical execution\n"
+            "5. Plan **SPDD** and **SPAU** adjustment effort\n"
+            "6. Test upgrade in sandbox before DEV/QAS/PRD sequence\n\n"
+            "📋 **SAP Note 2913617** — SAP Readiness Check\n"
+            "📋 **SAP Note 2568780** — Software Update Manager (SUM)\n"
+            "📋 **SAP Note 2399707** — S/4HANA technical prerequisites\n"
+            "🔗 **PAM:** https://apps.support.sap.com/sap/support/pam\n"
+            "🔗 **Maintenance Planner:** https://support.sap.com/mp\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Prerequisites
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "prerequisite", "requirements", "requirement",
+        "before", "prepare", "checklist", "readiness"
+    ]):
+        hits   = relevant([
+            "require", "prerequisite", "minimum",
+            "supported", "must", "hardware",
+            "software", "os", "database"
+        ])
+        answer = f"## ✅ Prerequisites & Requirements — {product}\n\n"
+
+        if hits:
+            answer += (
+                "**From SAP documentation:**\n"
+                + "\n".join(f"- {h}" for h in hits)
+                + "\n\n"
+            )
+
+        answer += (
+            "\n### Hardware Prerequisites\n"
+            "- CPU sizing must be validated using **SAP Quick Sizer**\n"
+            "- Memory sizing must include application + database + growth\n"
+            "- SUM staging requires approximately 100 GB free disk minimum\n"
+            "- Backup space must be available for full DB backup and logs\n\n"
+            "### Software Prerequisites\n"
+            "- Supported **OS version** per PAM\n"
+            "- Supported **database version** per PAM\n"
+            "- Latest stable **SAP Kernel** patch level\n"
+            "- Required **JDK version** for Java stacks / Fiori / BTP\n\n"
+            "### SAP Technical Prerequisites\n"
+            "- Valid **S-user** with download authorizations\n"
+            "- Access to **SAP Software Download Center**\n"
+            "- **SAP Solution Manager** for maintenance certificate / LMDB\n"
+            "- Minimum **Support Package level** before upgrade\n"
+            "- **Unicode** system required for S/4HANA\n"
+            "- Successful **Readiness Check** with no unresolved critical blockers\n\n"
+            "### Recommended Validation Tasks\n"
+            "1. Check current release and SP level in **SPAM / SAINT**\n"
+            "2. Review installed add-ons and industry solutions\n"
+            "3. Verify interfaces and custom code impact\n"
+            "4. Confirm backup and restore procedure works\n"
+            "5. Validate kernel, host agent, and DB revision compatibility\n\n"
+            "📋 **SAP Note 2186744** — Pre-upgrade checklist\n"
+            "📋 **SAP Note 2399707** — S/4HANA prerequisites\n"
+            "📋 **SAP Note 2913617** — SAP Readiness Check\n"
+            "📋 **SAP Note 19466** — Operating system requirements\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Installation / Download
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "install", "installation", "download", "setup",
+        "deploy", "sapinst", "swpm", "media"
+    ]):
+        hits   = relevant([
+            "install", "download", "setup", "deploy",
+            "media", "sapinst", "swpm"
+        ])
+        answer = f"## 💾 Installation & Download Guide — {product}\n\n"
+
+        if hits:
+            answer += (
+                "**From SAP documentation:**\n"
+                + "\n".join(f"- {h}" for h in hits)
+                + "\n\n"
+            )
+
+        answer += (
+            "\n### Download Sources\n\n"
+            "| Resource | URL |\n"
+            "|---|---|\n"
+            "| SAP Software Download Center | https://support.sap.com/swdc |\n"
+            "| SAP Maintenance Planner | https://support.sap.com/mp |\n"
+            "| SAP Help Portal | https://help.sap.com/docs |\n"
+            "| SAP Launchpad | https://launchpad.support.sap.com |\n\n"
+            "### Common Files to Download\n"
+            "1. Installation exports / DVDs\n"
+            "2. SAP Kernel (64-bit Unicode)\n"
+            "3. SAP Host Agent\n"
+            "4. Database installation media\n"
+            "5. SUM (for upgrade scenarios)\n"
+            "6. SWPM / sapinst (for fresh installation)\n"
+            "7. Stack.xml generated from Maintenance Planner\n\n"
+            "### Standard Installation Flow\n"
+            "Step 1 - Prepare operating system\n"
+            "Step 2 - Create required filesystem layout\n"
+            "Step 3 - Configure OS users and groups\n"
+            "Step 4 - Install and prepare database\n"
+            "Step 5 - Run SWPM (sapinst)\n"
+            "Step 6 - Apply latest SAP kernel\n"
+            "Step 7 - Complete post-installation setup\n"
+            "Step 8 - Apply support packages if required\n\n"
+            "### Post-Installation Checks\n"
+            "- Verify services start correctly\n"
+            "- Check work processes in **SM50**\n"
+            "- Validate RFCs in **SM59**\n"
+            "- Review profile parameters in **RZ10 / RZ11**\n"
+            "- Confirm transport setup in **STMS**\n\n"
+            "📋 **SAP Note 1680045** — Installation best practices\n"
+            "📋 **SAP Note 2393060** — sapinst / SWPM troubleshooting\n"
+            "📋 **SAP Note 1639498** — How to download SAP software\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Parameters / Config
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "parameter", "parameters", "profile",
+        "config", "configuration", "tuning",
+        "memory", "sizing", "rz10", "rz11",
+        "work process", "buffer"
+    ]):
+        hits   = relevant([
+            "parameter", "profile", "memory", "buffer",
+            "rdisp", "abap/", "icm/", "login/"
+        ])
+        answer = f"## ⚙️ Parameter Recommendations — {product}\n\n"
+
+        if hits:
+            answer += (
+                "**From SAP documentation:**\n"
+                + "\n".join(f"- {h}" for h in hits)
+                + "\n\n"
+            )
+
+        answer += (
+            "\n### Common ABAP Profile Parameters\n\n"
+            "Memory settings:\n"
+            "  abap/heap_area_total       = 2000000000\n"
+            "  abap/heap_area_dia         = 500000000\n"
+            "  em/initial_size_MB         = 4096\n"
+            "  em/max_size_MB             = 16384\n\n"
+            "Work process counts:\n"
+            "  rdisp/wp_no_dia            = 10\n"
+            "  rdisp/wp_no_btc            = 4\n"
+            "  rdisp/wp_no_spo            = 2\n"
+            "  rdisp/wp_no_upd            = 2\n"
+            "  rdisp/max_wprun_time       = 600\n\n"
+            "Buffer settings:\n"
+            "  zcsa/table_buffer_area     = 100000000\n"
+            "  rsdb/obj/buffersize        = 500000\n"
+            "  abap/buffersize            = 600000\n\n"
+            "### Common HANA Parameters (global.ini)\n\n"
+            "  [memorymanager]\n"
+            "  global_allocation_limit    = 80 percent of physical RAM\n\n"
+            "  [joins]\n"
+            "  optimization_target        = balanced\n\n"
+            "  [sql]\n"
+            "  result_cache_entry_lifetime = 300\n\n"
+            "### Common Linux OS Parameters (sysctl.conf)\n\n"
+            "  vm.max_map_count           = 2147483647\n"
+            "  vm.swappiness              = 10\n"
+            "  kernel.shmmax              = total RAM bytes\n"
+            "  fs.file-max                = 20000000\n"
+            "  net.core.somaxconn         = 4096\n\n"
+            "### Recommended Transactions\n"
+            "- **RZ10** — Maintain profile parameters\n"
+            "- **RZ11** — Display parameter documentation\n"
+            "- **ST02** — Analyze buffer quality and swaps\n"
+            "- **SM50 / SM66** — Work process monitoring\n"
+            "- **DBACOCKPIT** — DB and HANA administration\n\n"
+            "📋 **SAP Note 941735** — Memory management parameters\n"
+            "📋 **SAP Note 2222200** — HANA recommended settings\n"
+            "📋 **SAP Note 1984787** — OS parameters for SAP on Linux\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Dependencies / Compatibility
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "dependencies", "dependency", "compatibility",
+        "compatible", "component", "kernel",
+        "patch", "stack", "version matrix"
+    ]):
+        hits   = relevant([
+            "depend", "compatib", "kernel",
+            "patch", "component", "version",
+            "support package", "sp"
+        ])
+        answer = f"## 🔗 Dependencies & Compatibility — {product}\n\n"
+
+        if hits:
+            answer += (
+                "**From SAP documentation:**\n"
+                + "\n".join(f"- {h}" for h in hits)
+                + "\n\n"
+            )
+
+        answer += (
+            "\n### Common Dependency Areas\n"
+            "- **SAP Kernel** must match the target release requirements\n"
+            "- **SAP Host Agent** should be upgraded to a supported level\n"
+            "- **Database revision** must be supported for the target SAP product\n"
+            "- **Operating system** must be listed in PAM for the target release\n"
+            "- **Add-ons and industry solutions** must have valid upgrade paths\n"
+            "- **Java / browser / Fiori front-end** dependencies may apply\n\n"
+            "### Recommended Dependency Validation\n"
+            "1. Review installed add-ons in **SAINT**\n"
+            "2. Check SP stack levels in **SPAM**\n"
+            "3. Validate OS and DB combination in **PAM**\n"
+            "4. Generate and review **Maintenance Planner** stack\n"
+            "5. Confirm latest kernel and host agent availability\n\n"
+            "### Typical Compatibility Risks\n"
+            "- Unsupported database revision\n"
+            "- Old OS version not listed in PAM\n"
+            "- Third-party interface dependencies not tested\n"
+            "- Industry add-on not supported in target release\n"
+            "- Kernel patch mismatch\n\n"
+            "📋 **SAP Note 2379811** — Supported HANA revisions for S/4HANA\n"
+            "📋 **SAP Note 1707976** — Kernel dependency overview\n"
+            "🔗 **PAM:** https://apps.support.sap.com/sap/support/pam\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Best Practices
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "best practice", "best practices",
+        "recommendation", "recommendations",
+        "guideline", "guidelines", "tips"
+    ]):
+        answer = f"## 🌟 Best Practices — {product}\n\n"
+        answer += (
+            "### Upgrade Best Practices\n"
+            "- Upgrade in the order Sandbox then DEV then QAS then PRD\n"
+            "- Keep at least two verified backups before production upgrade\n"
+            "- Always use **Maintenance Planner** for stack definition\n"
+            "- Execute a dry run in sandbox before production execution\n"
+            "- Resolve all **Readiness Check** critical issues first\n\n"
+            "### Performance Best Practices\n"
+            "- Validate sizing with **SAP Quick Sizer**\n"
+            "- Review buffer swap rates in **ST02**\n"
+            "- Monitor work processes in **SM50 / SM66**\n"
+            "- Tune memory conservatively and validate after every change\n"
+            "- Run HANA health and mini-checks regularly\n\n"
+            "### Security Best Practices\n"
+            "- Apply latest security-relevant kernel patches promptly\n"
+            "- Enable **Security Audit Log** in all production systems\n"
+            "- Restrict SAP_ALL and SAP_NEW usage in production\n"
+            "- Use named RFC users with least privilege approach\n"
+            "- Review default password and technical user policies\n\n"
+            "### Operational Best Practices\n"
+            "- Freeze transports before major upgrade window\n"
+            "- Document rollback decision point and fallback plan\n"
+            "- Keep business, basis, DB, OS, and security teams aligned\n"
+            "- Maintain a detailed cutover checklist and rehearse it\n"
+            "- Plan hypercare support period after every go-live\n\n"
+            "📋 **SAP Note 1999993** — SAP HANA Mini Checks\n"
+            "📋 **SAP Note 2622660** — SUM best practices\n"
+            "🔗 **Best Practices Explorer:** https://rapid.sap.com/bp/\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Upgrade Plan / Steps / Procedure
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "plan", "steps", "step by step", "procedure",
+        "phase", "project", "roadmap", "execution", "cutover"
+    ]):
+        answer = f"## 📋 Upgrade Project Plan — {product}\n\n"
+        answer += (
+            "### Phase 1: Assessment and Planning\n"
+            "1. Inventory release, SP level, add-ons, and interfaces\n"
+            "2. Run SAP Readiness Check\n"
+            "3. Review target compatibility in PAM\n"
+            "4. Estimate effort for custom code remediation\n"
+            "5. Validate infrastructure sizing\n\n"
+            "### Phase 2: Software Preparation\n"
+            "6. Download SUM, kernel, and target media\n"
+            "7. Generate Stack.xml via Maintenance Planner\n"
+            "8. Prepare sandbox or rehearsal environment\n"
+            "9. Define fallback and rollback approach\n\n"
+            "### Phase 3: System Preparation\n"
+            "10. Apply prerequisite support packages\n"
+            "11. Remediate custom code findings\n"
+            "12. Freeze transports\n"
+            "13. Take full backup and perform restore test\n"
+            "14. Run SUM EXTRACTONLY and fix all errors\n\n"
+            "### Phase 4: Upgrade Execution\n"
+            "15. Notify stakeholders and lock users\n"
+            "16. Execute SUM\n"
+            "17. Handle SPDD and SPAU adjustments\n"
+            "18. Monitor DB, OS, and application logs throughout\n"
+            "19. Validate successful technical completion\n\n"
+            "### Phase 5: Validation and Testing\n"
+            "20. Apply required post-upgrade SAP Notes\n"
+            "21. Perform smoke testing of core transactions\n"
+            "22. Run integration and UAT testing\n"
+            "23. Tune parameters if needed\n\n"
+            "### Phase 6: Go-Live and Hypercare\n"
+            "24. Execute production cutover\n"
+            "25. Re-enable transports and interfaces\n"
+            "26. Monitor business processes closely\n"
+            "27. Complete hypercare and hand over to operations\n\n"
+            "📋 **SAP Note 2568780** — SUM documentation\n"
+            "📋 **SAP Note 2186744** — Pre-upgrade checklist\n"
+            "📋 **SAP Note 2913617** — Readiness Check\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Download / PDF / Guides
+    # --------------------------------------------------------
+    if any(k in q for k in [
+        "download", "pdf", "guide", "guides",
+        "document", "where can i download"
+    ]):
+        answer = f"## ⬇️ Downloads & Documentation — {product}\n\n"
+        answer += (
+            "### Main Download Sources\n\n"
+            "| Resource | URL |\n"
+            "|---|---|\n"
+            "| SAP Software Download Center | https://support.sap.com/swdc |\n"
+            "| SAP Maintenance Planner | https://support.sap.com/mp |\n"
+            "| SAP Help Portal | https://help.sap.com/docs |\n"
+            "| SAP Launchpad | https://launchpad.support.sap.com |\n\n"
+            "### Guide Types Available for Download\n"
+            "- Installation Guide\n"
+            "- Upgrade Guide\n"
+            "- Administration Guide\n"
+            "- Security Guide\n"
+            "- Operations Guide\n"
+            "- Master Guide\n"
+            "- Release Notes\n\n"
+            "### Typical Download Flow\n"
+            "1. Open **https://help.sap.com/docs**\n"
+            "2. Search for your SAP product and version\n"
+            "3. Open the guide or topic\n"
+            "4. Use the PDF or export option if available\n"
+            "5. For software files use **https://support.sap.com/swdc**\n\n"
+            "### Common Software Downloads\n"
+            "- SUM (Software Update Manager)\n"
+            "- SWPM (Software Provisioning Manager)\n"
+            "- SAP Kernel (64-bit Unicode)\n"
+            "- SAP Host Agent\n"
+            "- Target release installation exports\n"
+            "- Database client or installer\n\n"
+            "📋 **SAP Note 1639498** — Download authorization and software access\n"
+        )
+        return answer
+
+    # --------------------------------------------------------
+    # Generic fallback
+    # --------------------------------------------------------
+    extracted = [l for l in lines if len(l) > 40][:10]
+    answer    = f"## 📖 SAP Documentation Answer — {product}\n\n"
+    answer   += f"**Question:** {question}\n\n"
+
+    if extracted:
+        answer += "**Relevant extracted content:**\n\n"
+        answer += "\n\n".join(extracted)
+    else:
+        answer += (
+            "No directly relevant documentation text was extracted "
+            "for this query.\n\n"
+            "### Suggested Next Steps\n"
+            "- Search on **SAP Help Portal**: https://help.sap.com/docs\n"
+            "- Check **SAP Community**: https://community.sap.com\n"
+            "- Review **SAP Notes**: https://launchpad.support.sap.com\n"
+        )
+
+    return answer
+
+
+# ============================================================
+# CHECKLIST GENERATOR
+# ============================================================
+def generate_checklist(
+    source: str,
+    target: str,
+    opts: dict
+) -> list:
+    """
+    Generate a prioritized upgrade checklist based on source/target
+    and optional scenario flags.
+    """
+    items = [
+        {
+            "cat": "System Assessment",
+            "icon": "🔍",
+            "pri": "Critical",
+            "task": "Run SAP Readiness Check",
+            "detail": (
+                "Execute /SDF/RC_START_CHECK and resolve all "
+                "Critical findings before proceeding"
+            ),
+            "tool": "Transaction /SDF/RC_START_CHECK",
+            "note": "2913617",
+        },
+        {
+            "cat": "System Assessment",
+            "icon": "🔍",
+            "pri": "Critical",
+            "task": (
+                f"Verify {source} meets minimum SP "
+                f"prerequisite for {target}"
+            ),
+            "detail": (
+                "Check required minimum support package level "
+                "before upgrade execution"
+            ),
+            "tool": "SPAM / SE01",
+            "note": "2186744",
+        },
+        {
+            "cat": "System Assessment",
+            "icon": "🔍",
+            "pri": "High",
+            "task": "Check Product Availability Matrix (PAM)",
+            "detail": (
+                "Validate OS, DB, and release compatibility "
+                "for the target release"
+            ),
+            "tool": "apps.support.sap.com/sap/support/pam",
+            "note": "",
+        },
+        {
+            "cat": "System Assessment",
+            "icon": "🔍",
+            "pri": "High",
+            "task": "Inventory installed add-ons and industry solutions",
+            "detail": (
+                "Identify all components that need upgrade "
+                "path validation"
+            ),
+            "tool": "Transaction SAINT",
+            "note": "",
+        },
+        {
+            "cat": "Custom Code",
+            "icon": "🖊️",
+            "pri": "Critical",
+            "task": "Run Custom Code Migration Analysis",
+            "detail": (
+                "Use SCMA / ATC to identify incompatible custom code "
+                "and required remediation items"
+            ),
+            "tool": "SCMA / ATC",
+            "note": "2190420",
+        },
+        {
+            "cat": "Custom Code",
+            "icon": "🖊️",
+            "pri": "High",
+            "task": "Analyze modifications and enhancement points",
+            "detail": (
+                "Document custom objects, exits, BADIs, Z/Y programs, "
+                "and modified SAP objects"
+            ),
+            "tool": "SPAU / SPDD / SE80 / SE95",
+            "note": "",
+        },
+        {
+            "cat": "Infrastructure",
+            "icon": "🖥️",
+            "pri": "Critical",
+            "task": "Validate hardware sizing",
+            "detail": (
+                "Confirm CPU, RAM, and disk requirements using "
+                "SAP Quick Sizer and growth forecasts"
+            ),
+            "tool": "SAP Quick Sizer",
+            "note": "1652093",
+        },
+        {
+            "cat": "Infrastructure",
+            "icon": "🖥️",
+            "pri": "Critical",
+            "task": "Ensure SUM workspace disk availability",
+            "detail": (
+                "Reserve at least 100 GB free space for "
+                "SUM staging and logs"
+            ),
+            "tool": "OS disk checks / df -h",
+            "note": "2176227",
+        },
+        {
+            "cat": "Infrastructure",
+            "icon": "🖥️",
+            "pri": "High",
+            "task": "Verify OS parameter tuning",
+            "detail": (
+                "Apply SAP-recommended kernel and memory parameters "
+                "before upgrade"
+            ),
+            "tool": "/etc/sysctl.conf",
+            "note": "900929",
+        },
+        {
+            "cat": "Backup & Recovery",
+            "icon": "💾",
+            "pri": "Critical",
+            "task": "Take full database backup",
+            "detail": (
+                "Create a full backup immediately before upgrade "
+                "and confirm retention policy"
+            ),
+            "tool": "DBACOCKPIT / BRTOOLS / hdbsql",
+            "note": "",
+        },
+        {
+            "cat": "Backup & Recovery",
+            "icon": "💾",
+            "pri": "Critical",
+            "task": "Perform restore validation",
+            "detail": (
+                "Verify backup can be successfully restored "
+                "to a non-production environment"
+            ),
+            "tool": "Restore procedure test",
+            "note": "",
+        },
+        {
+            "cat": "Backup & Recovery",
+            "icon": "💾",
+            "pri": "High",
+            "task": "Export profile and configuration files",
+            "detail": (
+                "Save current SAP profiles, kernel info, RFC definitions, "
+                "and key technical settings"
+            ),
+            "tool": "RZ10 / filesystem copy / documentation",
+            "note": "",
+        },
+        {
+            "cat": "Software Downloads",
+            "icon": "⬇️",
+            "pri": "Critical",
+            "task": "Download latest SUM",
+            "detail": (
+                "Get the latest supported SUM version from "
+                "SAP Software Download Center"
+            ),
+            "tool": "support.sap.com/swdc",
+            "note": "2568780",
+        },
+        {
+            "cat": "Software Downloads",
+            "icon": "⬇️",
+            "pri": "Critical",
+            "task": "Download target release media",
+            "detail": (
+                "Download installation exports, kernel, host agent, "
+                "and required DB media"
+            ),
+            "tool": "SAP Software Download Center",
+            "note": "",
+        },
+        {
+            "cat": "Software Downloads",
+            "icon": "⬇️",
+            "pri": "Critical",
+            "task": "Generate Stack.xml with Maintenance Planner",
+            "detail": (
+                "Use Maintenance Planner to generate correct "
+                "stack definition file for upgrade"
+            ),
+            "tool": "support.sap.com/mp",
+            "note": "2383326",
+        },
+        {
+            "cat": "Access & Licensing",
+            "icon": "🔑",
+            "pri": "Critical",
+            "task": "Confirm S-user authorizations",
+            "detail": (
+                "Ensure software download and note access is available "
+                "before execution week"
+            ),
+            "tool": "SAP Support Portal",
+            "note": "",
+        },
+        {
+            "cat": "Access & Licensing",
+            "icon": "🔑",
+            "pri": "Critical",
+            "task": "Validate maintenance certificate",
+            "detail": (
+                "Check that system maintenance and license "
+                "prerequisites are current and valid"
+            ),
+            "tool": "Solution Manager / Maintenance Planner",
+            "note": "1979523",
+        },
+        {
+            "cat": "Change Control",
+            "icon": "🚦",
+            "pri": "High",
+            "task": "Freeze transports before upgrade",
+            "detail": (
+                "Block normal transport movement and "
+                "close critical change windows"
+            ),
+            "tool": "STMS / change management process",
+            "note": "",
+        },
+        {
+            "cat": "Testing",
+            "icon": "🧪",
+            "pri": "High",
+            "task": "Prepare smoke test scenarios",
+            "detail": (
+                "Define critical business and technical validation "
+                "steps for post-upgrade testing"
+            ),
+            "tool": "Test scripts / business process inventory",
+            "note": "",
+        },
+        {
+            "cat": "Communication",
+            "icon": "📣",
+            "pri": "Medium",
+            "task": "Notify business and technical stakeholders",
+            "detail": (
+                "Publish downtime window, validation responsibilities, "
+                "and escalation path"
+            ),
+            "tool": "Project communication plan",
+            "note": "",
+        },
+    ]
+
+    if opts.get("has_custom_code"):
+        items.append({
+            "cat": "Custom Code",
+            "icon": "🖊️",
+            "pri": "Critical",
+            "task": "Complete critical custom code remediation",
+            "detail": (
+                "All critical ATC and migration findings must be "
+                "resolved before execution starts"
+            ),
+            "tool": "ATC / ADT / remediation worklist",
+            "note": "2190420",
+        })
+
+    if opts.get("has_interfaces"):
+        items.append({
+            "cat": "Interfaces",
+            "icon": "🔗",
+            "pri": "High",
+            "task": "Inventory all system interfaces",
+            "detail": (
+                "List RFC, IDoc, API, middleware, file, "
+                "and external integration dependencies"
+            ),
+            "tool": "SM59 / WE20 / PI-PO / Integration Suite",
+            "note": "",
+        })
+        items.append({
+            "cat": "Interfaces",
+            "icon": "🔗",
+            "pri": "High",
+            "task": "Prepare interface validation plan",
+            "detail": (
+                "Define reconnect, retest, and fallback approach "
+                "for all interfaces after upgrade"
+            ),
+            "tool": "Integration test plan",
+            "note": "",
+        })
+
+    if opts.get("ha_required"):
+        items.append({
+            "cat": "High Availability",
+            "icon": "🛡️",
+            "pri": "High",
+            "task": "Validate HA and DR upgrade procedure",
+            "detail": (
+                "Coordinate failover, replication, and recovery "
+                "sequencing during planned maintenance"
+            ),
+            "tool": "HANA SR / cluster tooling / DR runbook",
+            "note": "1872602",
+        })
+
+    if opts.get("non_unicode"):
+        items.append({
+            "cat": "Unicode",
+            "icon": "🌐",
+            "pri": "Critical",
+            "task": "Plan Unicode conversion",
+            "detail": (
+                "S/4HANA target requires Unicode; "
+                "plan and sequence conversion appropriately"
+            ),
+            "tool": "SUM / Unicode conversion planning",
+            "note": "73606",
+        })
+
+    return items
+
+
+# ============================================================
+# HTML REPORT GENERATOR
+# ============================================================
+def generate_html_report(
+    product: str,
+    question: str,
+    answer: str,
+    sources: list,
+    checklist: list
+) -> str:
+    """
+    Generate a self-contained downloadable HTML report.
+    """
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    checklist_html = ""
+    if checklist:
+        rows = ""
+        for item in checklist:
+            pri_color = {
+                "Critical": "#fee2e2",
+                "High":     "#fef3c7",
+                "Medium":   "#dbeafe",
+            }.get(item["pri"], "#f8fafc")
+
+            note_html = (
+                "<a href='https://launchpad.support.sap.com"
+                f"/#/notes/{item[\"note\"]}' target='_blank'>"
+                f"{item['note']}</a>"
+            ) if item.get("note") else "—"
+
+            rows += (
+                "<tr>"
+                f"<td style='background:{pri_color};"
+                "padding:6px 10px;border:1px solid #e5e7eb;"
+                f"font-weight:600'>{item['pri']}</td>"
+                f"<td style='padding:6px 10px;"
+                f"border:1px solid #e5e7eb'>{item['cat']}</td>"
+                f"<td style='padding:6px 10px;"
+                "border:1px solid #e5e7eb;"
+                f"font-weight:600'>{item['task']}</td>"
+                f"<td style='padding:6px 10px;"
+                "border:1px solid #e5e7eb;"
+                f"font-size:.85em;color:#374151'>{item['detail']}</td>"
+                f"<td style='padding:6px 10px;"
+                f"border:1px solid #e5e7eb;font-size:.85em'>"
+                f"{item['tool']}</td>"
+                f"<td style='padding:6px 10px;"
+                f"border:1px solid #e5e7eb;font-size:.85em'>"
+                f"{note_html}</td>"
+                "</tr>"
+            )
+
+        checklist_html = (
+            "<div class='section'>"
+            f"<h2>Pre-Upgrade Checklist ({len(checklist)} items)</h2>"
+            "<table style='width:100%;border-collapse:collapse;"
+            "font-size:.85rem'>"
+            "<thead><tr style='background:#0057A8;color:#fff'>"
+            "<th style='padding:8px'>Priority</th>"
+            "<th style='padding:8px'>Category</th>"
+            "<th style='padding:8px'>Task</th>"
+            "<th style='padding:8px'>Detail</th>"
+            "<th style='padding:8px'>Tool</th>"
+            "<th style='padding:8px'>SAP Note</th>"
+            "</tr></thead>"
+            f"<tbody>{rows}</tbody>"
+            "</table></div>"
+        )
+
+    sources_html = ""
+    for src in sources:
+        desc     = src.get("description", "")
+        desc_tag = (
+            f"<br><small style='color:#6b7280'>{desc[:120]}</small>"
+            if desc else ""
+        )
+        sources_html += (
+            "<li style='margin:.45rem 0'>"
+            f"<a href='{src['url']}' target='_blank'>"
+            f"<strong>{src['title']}</strong></a>"
+            f"{desc_tag}</li>"
+        )
+
+    safe_answer = (
+        answer
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+    html = (
+        "<!DOCTYPE html>\n"
+        "<html lang='en'>\n"
+        "<head>\n"
+        "<meta charset='UTF-8'>\n"
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>\n"
+        f"<title>SAP Help Navigator Report - {product}</title>\n"
+        "<style>\n"
+        "body{font-family:'Segoe UI',Arial,sans-serif;margin:0;"
+        "background:#f8fafc;color:#1e293b;line-height:1.6}\n"
+        ".header{background:linear-gradient(135deg,#0057A8,#00A3E0);"
+        "color:#fff;padding:2rem 3rem}\n"
+        ".header h1{margin:0;font-size:1.8rem}\n"
+        ".header p{margin:.4rem 0 0;opacity:.85}\n"
+        ".section{background:#fff;margin:1.5rem 2rem;padding:1.5rem 2rem;"
+        "border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.07)}\n"
+        "h2{color:#0057A8;border-bottom:2px solid #e0e7ef;"
+        "padding-bottom:.4rem;margin-top:0}\n"
+        ".answer-box{background:#f0f7ff;border-left:4px solid #0057A8;"
+        "padding:1rem 1.4rem;border-radius:8px;white-space:pre-wrap}\n"
+        ".footer{text-align:center;padding:1.5rem;"
+        "color:#94a3b8;font-size:.8rem}\n"
+        "a{color:#0057A8}\n"
+        "</style>\n"
+        "</head>\n"
+        "<body>\n"
+        "<div class='header'>\n"
+        "<h1>SAP Help Navigator Pro - Report</h1>\n"
+        "<p>\n"
+        f"Product: <strong>{product or 'General SAP'}</strong>"
+        f" &nbsp;.&nbsp; Generated: {now}"
+        " &nbsp;.&nbsp; "
+        "<a href='https://help.sap.com/docs' target='_blank' "
+        "style='color:#fff'>help.sap.com</a>\n"
+        "</p>\n"
+        "</div>\n"
+        "<div class='section'>\n"
+        "<h2>Question</h2>\n"
+        f"<p style='font-size:1.05rem;font-weight:500'>{question}</p>\n"
+        "</div>\n"
+        "<div class='section'>\n"
+        "<h2>Answer</h2>\n"
+        f"<div class='answer-box'>{safe_answer}</div>\n"
+        "</div>\n"
+        f"{checklist_html}\n"
+        "<div class='section'>\n"
+        f"<h2>Source Documents ({len(sources)})</h2>\n"
+        "<ul style='padding-left:1.5rem;line-height:1.9'>\n"
+        f"{sources_html}\n"
+        "</ul>\n"
+        "</div>\n"
+        "<div class='footer'>\n"
+        f"SAP Help Navigator Pro &nbsp;.&nbsp; {now}"
+        " &nbsp;.&nbsp; For internal use only"
+        " &nbsp;.&nbsp; "
+        "<a href='https://help.sap.com/docs'>help.sap.com</a>\n"
+        "</div>\n"
+        "</body>\n"
+        "</html>"
+    )
+
+    return html
 
 # ============================================================
 # ============================================================
