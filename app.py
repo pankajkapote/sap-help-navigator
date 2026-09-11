@@ -1673,10 +1673,6 @@ def tab_upgrade_matrix():
                 unsafe_allow_html=True,
             )
         if not errors and not warnings:
-            st.markdown(Error:## Part 5 continued — end of tab_upgrade_matrix, Tab5 Parameters, Tab6 Checklist
-
-```python
-        if not errors and not warnings:
             st.markdown(
                 '<div class="success-box">✅ <strong>No immediate blocking '
                 'compatibility issues detected.</strong> Proceed with a full '
