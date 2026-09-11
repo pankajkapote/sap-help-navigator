@@ -2629,25 +2629,61 @@ def create_downtime_comparison(selected_roadmaps: List[str]) -> go.Figure:
 # ENHANCED UI RENDERING FUNCTIONS
 # ============================================================
 # ============================================================
-# LANDSCAPE DATA STRUCTURES
+# LANDSCAPE DATA STRUCTURES & VISUALIZATION
 # ============================================================
 
 def create_sample_landscape() -> Dict:
     """Create sample SAP landscape structure [1]"""
     return {
         "systems": [
-            {"sid": "DEV", "name": "Development", "type": "DEV", "role": "Development",
-             "release": "S/4HANA 2022", "db": "HANA 2.0 SPS06", "os": "RHEL 8.6",
-             "users": 50, "criticality": "Low", "position": (1, 3)},
-            {"sid": "QAS", "name": "Quality Assurance", "type": "QAS", "role": "Quality Assurance",
-             "release": "S/4HANA 2022", "db": "HANA 2.0 SPS06", "os": "RHEL 8.6",
-             "users": 100, "criticality": "Medium", "position": (2, 3)},
-            {"sid": "PRD", "name": "Production", "type": "PRD", "role": "Production",
-             "release": "S/4HANA 2022", "db": "HANA 2.0 SPS06", "os": "RHEL 8.6",
-             "users": 500, "criticality": "Critical", "position": (3, 3)},
-            {"sid": "SBX", "name": "Sandbox", "type": "SBX", "role": "Sandbox",
-             "release": "S/4HANA 2023", "db": "HANA 2.0 SPS07", "os": "RHEL 9.0",
-             "users": 20, "criticality": "Low", "position": (1, 1)},
+            {
+                "sid": "DEV",
+                "name": "Development",
+                "type": "DEV",
+                "role": "Development",
+                "release": "S/4HANA 2022",
+                "db": "HANA 2.0 SPS06",
+                "os": "RHEL 8.6",
+                "users": 50,
+                "criticality": "Low",
+                "position": (1, 3)
+            },
+            {
+                "sid": "QAS",
+                "name": "Quality Assurance",
+                "type": "QAS",
+                "role": "Quality Assurance",
+                "release": "S/4HANA 2022",
+                "db": "HANA 2.0 SPS06",
+                "os": "RHEL 8.6",
+                "users": 100,
+                "criticality": "Medium",
+                "position": (2, 3)
+            },
+            {
+                "sid": "PRD",
+                "name": "Production",
+                "type": "PRD",
+                "role": "Production",
+                "release": "S/4HANA 2022",
+                "db": "HANA 2.0 SPS06",
+                "os": "RHEL 8.6",
+                "users": 500,
+                "criticality": "Critical",
+                "position": (3, 3)
+            },
+            {
+                "sid": "SBX",
+                "name": "Sandbox",
+                "type": "SBX",
+                "role": "Sandbox",
+                "release": "S/4HANA 2023",
+                "db": "HANA 2.0 SPS07",
+                "os": "RHEL 9.0",
+                "users": 20,
+                "criticality": "Low",
+                "position": (1, 1)
+            },
         ],
         "transport_routes": [
             {"from": "DEV", "to": "QAS", "type": "Standard"},
@@ -2656,8 +2692,126 @@ def create_sample_landscape() -> Dict:
         "interfaces": [
             {"system": "PRD", "target": "SAP BW", "type": "RFC"},
             {"system": "PRD", "target": "SAP PI", "type": "IDoc"},
+            {"system": "PRD", "target": "External API", "type": "REST"},
         ]
     }
+
+def create_landscape_diagram(landscape: Dict) -> go.Figure:
+    """Create interactive landscape visualization using Plotly [1]"""
+    systems = landscape["systems"]
+    routes = landscape.get("transport_routes", [])
+    
+    fig = go.Figure()
+    
+    # Add system nodes
+    for system in systems:
+        x, y = system["position"]
+        
+        color_map = {
+            "Critical": "#dc2626",
+            "High": "#f59e0b",
+            "Medium": "#3b82f6",
+            "Low": "#10b981"
+        }
+        color = color_map.get(system["criticality"], "#6b7280")
+        
+        fig.add_trace(go.Scatter(
+            x=[x],
+            y=[y],
+            mode="markers+text",
+            marker=dict(size=50, color=color, line=dict(width=2, color="white")),
+            text=system["sid"],
+            textposition="middle center",
+            textfont=dict(color="white", size=14, family="Arial Black"),
+            name=system["name"],
+            hovertemplate=(
+                f"<b>{system['name']} ({system['sid']})</b><br>"
+                f"Release: {system['release']}<br>"
+                f"Database: {system['db']}<br>"
+                f"OS: {system['os']}<br>"
+                f"Users: {system['users']}<br>"
+                f"Criticality: {system['criticality']}<br>"
+                "<extra></extra>"
+            ),
+            showlegend=False
+        ))
+    
+    # Add transport routes
+    for route in routes:
+        from_sys = next((s for s in systems if s["sid"] == route["from"]), None)
+        to_sys = next((s for s in systems if s["sid"] == route["to"]), None)
+        
+        if from_sys and to_sys:
+            x_from, y_from = from_sys["position"]
+            x_to, y_to = to_sys["position"]
+            
+            fig.add_trace(go.Scatter(
+                x=[x_from, x_to],
+                y=[y_from, y_to],
+                mode="lines",
+                line=dict(color="#94a3b8", width=3),
+                showlegend=False
+            ))
+            
+            fig.add_annotation(
+                x=x_to, y=y_to, ax=x_from, ay=y_from,
+                xref="x", yref="y", axref="x", ayref="y",
+                showarrow=True, arrowhead=2, arrowsize=1.5,
+                arrowwidth=2, arrowcolor="#94a3b8"
+            )
+    
+    fig.update_layout(
+        title={"text": "🗺️ SAP Landscape Overview", "x": 0.5, "xanchor": "center"},
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[0, 4]),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[0, 4]),
+        hovermode="closest",
+        plot_bgcolor="white",
+        height=500,
+        showlegend=False
+    )
+    
+    return fig
+
+def calculate_upgrade_sequence(landscape: Dict) -> List[Dict]:
+    """Calculate optimal upgrade sequence [1]"""
+    systems = landscape["systems"]
+    priority_order = {"SBX": 1, "DEV": 2, "QAS": 3, "PRD": 4}
+    
+    sorted_systems = sorted(systems, key=lambda x: priority_order.get(x["type"], 99))
+    
+    sequence = []
+    cumulative_downtime = 0
+    
+    for idx, system in enumerate(sorted_systems, 1):
+        if system["type"] == "SBX":
+            downtime_hours = 4
+            business_impact = "None"
+        elif system["type"] == "DEV":
+            downtime_hours = 8
+            business_impact = "Low - Development only"
+        elif system["type"] == "QAS":
+            downtime_hours = 12
+            business_impact = "Medium - Testing delayed"
+        else:
+            downtime_hours = 24
+            business_impact = "High - Business operations affected"
+        
+        cumulative_downtime += downtime_hours
+        
+        sequence.append({
+            "order": idx,
+            "sid": system["sid"],
+            "name": system["name"],
+            "current_release": system["release"],
+            "target_release": "S/4HANA 2023",
+            "downtime_hours": downtime_hours,
+            "cumulative_downtime": cumulative_downtime,
+            "business_impact": business_impact,
+            "prerequisites": [],
+            "parallel_possible": system["type"] in ["SBX", "DEV"]
+        })
+    
+    return sequence
 def render_landscape_visualizer_tab():
     """Enhanced Landscape Visualizer with source/target selection [1]"""
     st.title("🗺️ SAP Landscape Visualizer & Upgrade Roadmap Planner")
