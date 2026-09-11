@@ -403,6 +403,7 @@ def display_release_calendar():
     
     releases = fetch_sap_release_calendar()
     
+    # Create tabs
     tabs = st.tabs([
         "🔷 S/4HANA", 
         "💾 HANA DB", 
@@ -417,19 +418,42 @@ def display_release_calendar():
         "📈 BOBJ"
     ])
     
-    product_names = [
-        "SAP S/4HANA", "SAP HANA Database", "SAP NetWeaver", "SAP BTP",
-        "SAP BW/4HANA", "SAP Fiori", "SAP PI/PO", "SAP SLT",
-        "SAP Solution Manager", "Sybase ASE", "SAP BOBJ"
+    # Map tab index to product key (MUST match keys in fetch_sap_release_calendar)
+    product_keys = [
+        "SAP S/4HANA",
+        "SAP HANA Database",
+        "SAP NetWeaver",
+        "SAP BTP",
+        "SAP BW/4HANA",
+        "SAP Fiori",
+        "SAP PI/PO",
+        "SAP SLT",
+        "SAP Solution Manager",
+        "Sybase ASE",
+        "SAP BOBJ"
     ]
     
-    for tab, product_name in zip(tabs, product_names):
+    # Display content in each tab
+    for idx, tab in enumerate(tabs):
+        product_key = product_keys[idx]
+        
         with tab:
-            st.markdown(f"### {product_name} Releases")
-            if product_name == "SAP S/4HANA":
+            st.markdown(f"### {product_key} Releases")
+            
+            # Special note for S/4HANA
+            if product_key == "SAP S/4HANA":
                 st.info("ℹ️ Note: SAP skipped version 2024. Timeline: 2023 → 2025 [1]")
             
-            for release in releases[product_name]:
+            # Check if product exists in releases dictionary
+            if product_key not in releases:
+                st.warning(f"No release data available for {product_key}")
+                continue
+            
+            # Display releases
+            for release in releases[product_key]:
+                status = release.get("status", "Active")
+                
+                # Status color mapping
                 status_color = {
                     "Active Maintenance": "🟢",
                     "Extended Maintenance": "🟡",
@@ -437,13 +461,12 @@ def display_release_calendar():
                     "Planned": "🔵",
                     "Active": "🟢",
                     "Limited": "🟡"
-                }.get(release.get("status", "Active"), "⚪")
+                }.get(status, "⚪")
                 
-                with st.expander(f"{status_color} {release['release']} - {release.get('status', 'Active')}"):
+                with st.expander(f"{status_color} {release['release']} - {status}"):
                     col1, col2 = st.columns(2)
                     col1.metric("GA Date", release.get("ga", "N/A"))
                     col2.metric("End of Maintenance", release.get("end", "N/A"))
-
 def render_sidebar():
     """Render sidebar navigation"""
     with st.sidebar:
