@@ -2219,8 +2219,8 @@ def render_html_report_generator():
 
 # End of Part 8
 # ============================================================
-# SAP HELP NAVIGATOR PRO - PART 9/11
-# Landscape Visualizer with Transport Routes
+# SAP HELP NAVIGATOR PRO - PART 9/11 (ENHANCED)
+# Landscape Visualizer with Upgrade Roadmaps
 # ============================================================
 
 import plotly.graph_objects as go
@@ -2228,381 +2228,575 @@ import plotly.express as px
 from typing import List, Dict, Tuple
 
 # ============================================================
-# LANDSCAPE DATA STRUCTURES
+# UPGRADE ROADMAP DEFINITIONS
 # ============================================================
 
-def create_sample_landscape() -> Dict:
+def get_upgrade_roadmaps() -> Dict:
     """
-    Create sample SAP landscape structure
-    Based on context [1]
+    Define all SAP upgrade/migration roadmaps with details
+    Based on SAP best practices [1]
     """
     return {
-        "systems": [
-            {
-                "sid": "DEV",
-                "name": "Development",
-                "type": "DEV",
-                "release": "S/4HANA 2022",
-                "db": "HANA 2.0 SPS06",
-                "os": "RHEL 8.6",
-                "users": 50,
-                "criticality": "Low",
-                "position": (1, 3)
-            },
-            {
-                "sid": "QAS",
-                "name": "Quality Assurance",
-                "type": "QAS",
-                "release": "S/4HANA 2022",
-                "db": "HANA 2.0 SPS06",
-                "os": "RHEL 8.6",
-                "users": 100,
-                "criticality": "Medium",
-                "position": (2, 3)
-            },
-            {
-                "sid": "PRD",
-                "name": "Production",
-                "type": "PRD",
-                "release": "S/4HANA 2022",
-                "db": "HANA 2.0 SPS06",
-                "os": "RHEL 8.6",
-                "users": 500,
-                "criticality": "Critical",
-                "position": (3, 3)
-            },
-            {
-                "sid": "SBX",
-                "name": "Sandbox",
-                "type": "SBX",
-                "release": "S/4HANA 2023",
-                "db": "HANA 2.0 SPS07",
-                "os": "RHEL 9.0",
-                "users": 20,
-                "criticality": "Low",
-                "position": (1, 1)
-            },
-        ],
-        "transport_routes": [
-            {"from": "DEV", "to": "QAS", "type": "Standard"},
-            {"from": "QAS", "to": "PRD", "type": "Standard"},
-        ],
-        "interfaces": [
-            {"system": "PRD", "target": "SAP BW", "type": "RFC"},
-            {"system": "PRD", "target": "SAP PI", "type": "IDoc"},
-            {"system": "PRD", "target": "External API", "type": "REST"},
-        ]
+        "Standard Upgrade": {
+            "name": "Standard System Upgrade",
+            "acronym": "Standard",
+            "description": "Traditional upgrade approach using SUM (Software Update Manager) [1]",
+            "use_case": "Release-to-release upgrades within same product line",
+            "downtime": "High (24-48 hours typical)",
+            "complexity": "Medium",
+            "phases": [
+                "Preparation",
+                "Shadow System Import",
+                "SPDD/SPAU Adjustments",
+                "Downtime Starts",
+                "Switch to Target",
+                "Post-Processing"
+            ],
+            "pros": [
+                "Well-established and proven method",
+                "Preserves all data and customizations",
+                "Comprehensive SAP documentation available [1]",
+                "No data migration complexity"
+            ],
+            "cons": [
+                "Significant downtime required (24-48 hours)",
+                "All systems must be upgraded in sequence [1]",
+                "Cannot skip intermediate releases easily",
+                "Full system unavailable during upgrade"
+            ],
+            "tools": ["SUM (Software Update Manager)", "SAP Maintenance Planner [1]"],
+            "sap_notes": ["2568780", "2186744"]
+        },
+        
+        "DMO": {
+            "name": "Database Migration Option",
+            "acronym": "DMO",
+            "description": "Combined upgrade + database migration to HANA in single step",
+            "use_case": "ECC to S/4HANA conversion with non-HANA to HANA DB migration",
+            "downtime": "High (36-72 hours typical)",
+            "complexity": "High",
+            "phases": [
+                "Preparation",
+                "Shadow System Clone",
+                "Database Migration to HANA",
+                "ABAP Import",
+                "SPDD/SPAU",
+                "Downtime & Switch",
+                "Finalization"
+            ],
+            "pros": [
+                "Single-step approach (upgrade + DB migration)",
+                "Reduces overall project timeline",
+                "Automated by SUM with DMO option",
+                "Recommended by SAP for S/4HANA conversions [1]"
+            ],
+            "cons": [
+                "Very long downtime (36-72 hours)",
+                "High complexity and risk",
+                "Requires significant hardware resources",
+                "Rollback is complex"
+            ],
+            "tools": ["SUM with DMO", "SWPM", "R3load"],
+            "sap_notes": ["2399707", "2913617"]
+        },
+        
+        "DoDMO": {
+            "name": "Downtime Optimized DMO",
+            "acronym": "DoDMO",
+            "description": "DMO with minimized downtime through uptime data replication",
+            "use_case": "S/4HANA conversion requiring reduced production downtime",
+            "downtime": "Medium (8-20 hours typical)",
+            "complexity": "High",
+            "phases": [
+                "Uptime Replication Setup",
+                "Shadow System + Migration (Uptime)",
+                "Delta Sync",
+                "SPDD/SPAU (Can be uptime)",
+                "Short Downtime Window",
+                "Final Delta + Switch",
+                "Go-Live"
+            ],
+            "pros": [
+                "Significantly reduced downtime vs standard DMO",
+                "Most work done during uptime",
+                "Production system remains available longer",
+                "Good balance of complexity vs. downtime"
+            ],
+            "cons": [
+                "More complex setup and execution",
+                "Requires careful delta synchronization",
+                "Higher resource consumption during uptime",
+                "Limited rollback window"
+            ],
+            "tools": ["SUM with DMO", "Replication tools", "Delta monitoring"],
+            "sap_notes": ["2399707", "2774781"]
+        },
+        
+        "nZDM": {
+            "name": "Near-Zero Downtime Maintenance",
+            "acronym": "nZDM",
+            "description": "Minimize downtime for release upgrades using clone and sync",
+            "use_case": "S/4HANA to S/4HANA upgrades with minimal downtime requirement",
+            "downtime": "Low (2-8 hours typical)",
+            "complexity": "Very High",
+            "phases": [
+                "Clone Production to Shadow",
+                "Upgrade Shadow System (Uptime)",
+                "Sync Changes to Shadow",
+                "SPDD/SPAU on Shadow",
+                "Final Sync Window",
+                "Brief Downtime (Switch)",
+                "Production on New Release"
+            ],
+            "pros": [
+                "Minimal production downtime (hours vs days)",
+                "Business continues during most of upgrade",
+                "Lower business impact",
+                "Proven for S/4HANA upgrades"
+            ],
+            "cons": [
+                "Very high complexity",
+                "Requires significant infrastructure",
+                "Expensive (resources + SAP premium services)",
+                "Requires expert planning and execution",
+                "Not suitable for all scenarios"
+            ],
+            "tools": ["nZDM Technology", "SUM", "Replication tools"],
+            "sap_notes": ["2343437", "2774781"]
+        },
+        
+        "nZDT": {
+            "name": "Near-Zero Downtime Technology",
+            "acronym": "nZDT",
+            "description": "Advanced zero-downtime approach with live table splitting",
+            "use_case": "Large S/4HANA systems requiring absolute minimal downtime",
+            "downtime": "Very Low (1-4 hours typical)",
+            "complexity": "Extremely High",
+            "phases": [
+                "Pre-conversion setup",
+                "Uptime table conversion",
+                "Shadow instance preparation",
+                "Critical table replication",
+                "Minimal downtime switch",
+                "Post-conversion cleanup"
+            ],
+            "pros": [
+                "Absolute minimal downtime (hours)",
+                "Business-critical operations barely affected",
+                "Table-by-table conversion during uptime",
+                "SAP's most advanced upgrade technology"
+            ],
+            "cons": [
+                "Extremely complex implementation",
+                "Very expensive (SAP Premium Engagement required)",
+                "Long overall project duration",
+                "Requires extensive planning (6+ months)",
+                "Only for very large/critical systems"
+            ],
+            "tools": ["nZDT Framework", "DMO", "Custom table replication"],
+            "sap_notes": ["2343437", "2774781", "2731427"]
+        },
+        
+        "ZDO": {
+            "name": "Zero Downtime Option",
+            "acronym": "ZDO",
+            "description": "Hybrid approach combining uptime conversion with brief switch",
+            "use_case": "Medium-to-large systems needing minimal downtime",
+            "downtime": "Low (4-12 hours typical)",
+            "complexity": "High",
+            "phases": [
+                "Preparation and validation",
+                "Uptime shadow creation",
+                "Table conversion (uptime)",
+                "Code import (uptime)",
+                "Brief downtime for switch",
+                "Validation and go-live"
+            ],
+            "pros": [
+                "Good balance of complexity and downtime",
+                "Most conversion work during uptime",
+                "More affordable than nZDT",
+                "Suitable for many enterprise scenarios"
+            ],
+            "cons": [
+                "Still requires careful planning",
+                "Infrastructure overhead during uptime",
+                "Longer overall project timeline",
+                "Not as minimal downtime as nZDT"
+            ],
+            "tools": ["SUM with ZDO", "Shadow system tools"],
+            "sap_notes": ["2774781", "2343437"]
+        },
+        
+        "Selective Data Transition": {
+            "name": "Selective Data Transition",
+            "acronym": "SDT",
+            "description": "Migrate only selected data to new S/4HANA system (no full history)",
+            "use_case": "Legacy ECC systems with data cleanup opportunity",
+            "downtime": "Variable (depends on scope)",
+            "complexity": "Very High",
+            "phases": [
+                "Data assessment and scoping",
+                "Greenfield S/4HANA installation",
+                "Data mapping and transformation",
+                "Selective extraction",
+                "Data load and validation",
+                "Cutover and hypercare"
+            ],
+            "pros": [
+                "Clean start without technical debt",
+                "Opportunity to redesign processes",
+                "Smaller target database size",
+                "Can eliminate obsolete data",
+                "Fresh system with best practices [1]"
+            ],
+            "cons": [
+                "Very long project duration (12-24 months)",
+                "High cost and resource intensity",
+                "Complex data migration logic required",
+                "Historical data may be lost or archived",
+                "Business process reengineering needed"
+            ],
+            "tools": ["SAP Data Services", "Migration Cockpit", "LTMC", "LSMW"],
+            "sap_notes": ["3214014", "2769531"]
+        }
     }
 
-def calculate_upgrade_sequence(landscape: Dict) -> List[Dict]:
-    """
-    Calculate optimal upgrade sequence with downtime analysis
-    Based on context [1]
-    """
-    systems = landscape["systems"]
+def compare_roadmaps(roadmap_names: List[str]) -> pd.DataFrame:
+    """Create comparison dataframe for selected roadmaps"""
+    roadmaps = get_upgrade_roadmaps()
     
-    # Sort by: Sandbox -> DEV -> QAS -> PRD
-    priority_order = {"SBX": 1, "DEV": 2, "QAS": 3, "PRD": 4}
+    comparison_data = []
+    for name in roadmap_names:
+        if name in roadmaps:
+            rm = roadmaps[name]
+            comparison_data.append({
+                "Approach": rm["acronym"],
+                "Downtime": rm["downtime"],
+                "Complexity": rm["complexity"],
+                "Best For": rm["use_case"],
+                "Phases": len(rm["phases"])
+            })
     
-    sorted_systems = sorted(
-        systems,
-        key=lambda x: priority_order.get(x["type"], 99)
-    )
-    
-    sequence = []
-    cumulative_downtime = 0
-    
-    for idx, system in enumerate(sorted_systems, 1):
-        # Estimate downtime based on system type and release
-        if system["type"] == "SBX":
-            downtime_hours = 4
-            business_impact = "None"
-        elif system["type"] == "DEV":
-            downtime_hours = 8
-            business_impact = "Low - Development only"
-        elif system["type"] == "QAS":
-            downtime_hours = 12
-            business_impact = "Medium - Testing delayed"
-        else:  # PRD
-            downtime_hours = 24
-            business_impact = "High - Business operations affected"
-        
-        cumulative_downtime += downtime_hours
-        
-        sequence.append({
-            "order": idx,
-            "sid": system["sid"],
-            "name": system["name"],
-            "current_release": system["release"],
-            "target_release": "S/4HANA 2023",
-            "downtime_hours": downtime_hours,
-            "cumulative_downtime": cumulative_downtime,
-            "business_impact": business_impact,
-            "prerequisites": get_upgrade_prerequisites(system),
-            "parallel_possible": system["type"] in ["SBX", "DEV"]
-        })
-    
-    return sequence
-
-def get_upgrade_prerequisites(system: Dict) -> List[str]:
-    """Get prerequisites for system upgrade"""
-    prereqs = []
-    
-    if system["type"] == "QAS":
-        prereqs.append("DEV system must be upgraded first")
-        prereqs.append("Transport all pending changes from DEV")
-    
-    if system["type"] == "PRD":
-        prereqs.append("QAS system must be upgraded and validated")
-        prereqs.append("Complete UAT in QAS environment")
-        prereqs.append("Business approval for downtime window")
-        prereqs.append("Full system backup completed")
-    
-    prereqs.append(f"Verify {system['db']} compatibility")
-    prereqs.append("Run SAP Readiness Check")
-    
-    return prereqs
+    return pd.DataFrame(comparison_data)
 
 # ============================================================
-# VISUALIZATION FUNCTIONS
+# N+1 LANDSCAPE RECOMMENDATION ENGINE
 # ============================================================
 
-def create_landscape_diagram(landscape: Dict) -> go.Figure:
+def analyze_landscape_and_recommend(landscape: Dict, source_release: str, target_release: str) -> Dict:
     """
-    Create interactive landscape visualization using Plotly
-    Based on context [1]
+    Analyze landscape and recommend N+1 approach where needed
+    Based on SAP best practices [1]
     """
-    systems = landscape["systems"]
-    routes = landscape.get("transport_routes", [])
+    systems = landscape.get("systems", [])
     
-    # Create figure
+    # Check if N+1 is needed
+    needs_n_plus_1 = False
+    reason = ""
+    
+    # Example: If going from ECC 6.0 EHP5 to S/4HANA, suggest intermediate step
+    if "ECC 6.0 EHP5" in source_release and "S/4HANA" in target_release:
+        needs_n_plus_1 = True
+        reason = "Direct upgrade from ECC 6.0 EHP5 to S/4HANA not supported. Recommended path: ECC 6.0 EHP5 → EHP7/EHP8 → S/4HANA [1]"
+    
+    # Check system landscape complexity
+    if len(systems) > 5:
+        needs_n_plus_1 = True
+        reason += " Large landscape detected. Consider phased N+1 approach for risk mitigation [1]"
+    
+    recommendation = {
+        "needs_n_plus_1": needs_n_plus_1,
+        "reason": reason,
+        "recommended_path": [],
+        "benefits": []
+    }
+    
+    if needs_n_plus_1:
+        recommendation["recommended_path"] = [
+            source_release,
+            "Intermediate Release (EHP7/EHP8 or S/4HANA 2020)",
+            target_release
+        ]
+        recommendation["benefits"] = [
+            "Reduced complexity per upgrade cycle",
+            "Better risk management through staged approach [1]",
+            "Opportunity to validate at each stage",
+            "Easier rollback at intermediate steps",
+            "Time to adapt custom code gradually"
+        ]
+    
+    return recommendation
+
+# ============================================================
+# GRAPHICAL PHASE COMPARISON
+# ============================================================
+
+def create_phase_comparison_chart(selected_roadmaps: List[str]) -> go.Figure:
+    """Create Gantt-style chart comparing phases across roadmaps"""
+    roadmaps = get_upgrade_roadmaps()
+    
     fig = go.Figure()
     
-    # Add system nodes
-    for system in systems:
-        x, y = system["position"]
-        
-        # Color by criticality
-        color_map = {
-            "Critical": "#dc2626",
-            "High": "#f59e0b",
-            "Medium": "#3b82f6",
-            "Low": "#10b981"
-        }
-        color = color_map.get(system["criticality"], "#6b7280")
-        
-        # Add node
-        fig.add_trace(go.Scatter(
-            x=[x],
-            y=[y],
-            mode="markers+text",
-            marker=dict(size=50, color=color, line=dict(width=2, color="white")),
-            text=system["sid"],
-            textposition="middle center",
-            textfont=dict(color="white", size=14, family="Arial Black"),
-            name=system["name"],
-            hovertemplate=(
-                f"<b>{system['name']} ({system['sid']})</b><br>"
-                f"Release: {system['release']}<br>"
-                f"Database: {system['db']}<br>"
-                f"OS: {system['os']}<br>"
-                f"Users: {system['users']}<br>"
-                f"Criticality: {system['criticality']}<br>"
-                "<extra></extra>"
-            )
-        ))
+    colors = px.colors.qualitative.Set2
     
-    # Add transport routes
-    for route in routes:
-        from_sys = next((s for s in systems if s["sid"] == route["from"]), None)
-        to_sys = next((s for s in systems if s["sid"] == route["to"]), None)
+    for idx, rm_name in enumerate(selected_roadmaps):
+        if rm_name not in roadmaps:
+            continue
         
-        if from_sys and to_sys:
-            x_from, y_from = from_sys["position"]
-            x_to, y_to = to_sys["position"]
-            
-            fig.add_trace(go.Scatter(
-                x=[x_from, x_to],
-                y=[y_from, y_to],
-                mode="lines",
-                line=dict(color="#94a3b8", width=3, dash="solid"),
-                hovertemplate=f"Transport Route: {route['from']} → {route['to']}<extra></extra>",
-                showlegend=False
+        rm = roadmaps[rm_name]
+        phases = rm["phases"]
+        
+        for phase_idx, phase in enumerate(phases):
+            fig.add_trace(go.Bar(
+                name=f"{rm['acronym']} - {phase}",
+                x=[1],
+                y=[f"{rm['acronym']}"],
+                orientation='h',
+                marker=dict(color=colors[phase_idx % len(colors)]),
+                text=phase,
+                textposition='inside',
+                hovertemplate=f"<b>{rm['acronym']}</b><br>{phase}<extra></extra>",
+                showlegend=(idx == 0)  # Only show legend for first roadmap
             ))
-            
-            # Add arrow annotation
-            fig.add_annotation(
-                x=x_to,
-                y=y_to,
-                ax=x_from,
-                ay=y_from,
-                xref="x",
-                yref="y",
-                axref="x",
-                ayref="y",
-                showarrow=True,
-                arrowhead=2,
-                arrowsize=1.5,
-                arrowwidth=2,
-                arrowcolor="#94a3b8"
-            )
     
-    # Update layout
     fig.update_layout(
-        title={
-            "text": "🗺️ SAP Landscape Overview",
-            "x": 0.5,
-            "xanchor": "center",
-            "font": {"size": 20, "color": "#1e293b"}
-        },
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            showticklabels=False,
-            range=[0, 4]
-        ),
-        yaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            showticklabels=False,
-            range=[0, 4]
-        ),
-        hovermode="closest",
-        plot_bgcolor="white",
-        paper_bgcolor="white",
-        showlegend=False,
-        height=500
+        title="🔄 Upgrade Roadmap Phase Comparison",
+        xaxis_title="Relative Phase Duration",
+        yaxis_title="Roadmap",
+        barmode='stack',
+        height=400,
+        hovermode='closest'
     )
     
     return fig
 
-def create_downtime_chart(sequence: List[Dict]) -> go.Figure:
-    """Create downtime analysis chart"""
+def create_downtime_comparison(selected_roadmaps: List[str]) -> go.Figure:
+    """Create downtime comparison visualization"""
+    roadmaps = get_upgrade_roadmaps()
     
-    sids = [s["sid"] for s in sequence]
-    downtimes = [s["downtime_hours"] for s in sequence]
-    cumulative = [s["cumulative_downtime"] for s in sequence]
+    downtime_map = {
+        "Very Low (1-4 hours)": 2.5,
+        "Low (2-8 hours)": 5,
+        "Low (4-12 hours)": 8,
+        "Medium (8-20 hours)": 14,
+        "High (24-48 hours)": 36,
+        "High (36-72 hours)": 54,
+        "Variable (depends on scope)": 24
+    }
     
-    fig = go.Figure()
+    roadmap_names = []
+    downtime_hours = []
+    colors_list = []
     
-    # Individual downtime bars
-    fig.add_trace(go.Bar(
-        name="Downtime per System",
-        x=sids,
-        y=downtimes,
-        marker_color="#3b82f6",
-        text=[f"{d}h" for d in downtimes],
-        textposition="outside"
-    ))
+    for rm_name in selected_roadmaps:
+        if rm_name in roadmaps:
+            rm = roadmaps[rm_name]
+            roadmap_names.append(rm["acronym"])
+            downtime_hours.append(downtime_map.get(rm["downtime"], 24))
+            
+            # Color by downtime level
+            if "Very Low" in rm["downtime"]:
+                colors_list.append("#10b981")
+            elif "Low" in rm["downtime"]:
+                colors_list.append("#3b82f6")
+            elif "Medium" in rm["downtime"]:
+                colors_list.append("#f59e0b")
+            else:
+                colors_list.append("#dc2626")
     
-    # Cumulative line
-    fig.add_trace(go.Scatter(
-        name="Cumulative Downtime",
-        x=sids,
-        y=cumulative,
-        mode="lines+markers",
-        line=dict(color="#dc2626", width=3),
-        marker=dict(size=10),
-        text=[f"{c}h total" for c in cumulative],
-        textposition="top center",
-        yaxis="y2"
-    ))
+    fig = go.Figure(data=[
+        go.Bar(
+            x=roadmap_names,
+            y=downtime_hours,
+            marker_color=colors_list,
+            text=[f"{h}h" for h in downtime_hours],
+            textposition='outside'
+        )
+    ])
     
     fig.update_layout(
-        title="⏱️ Upgrade Downtime Analysis",
-        xaxis_title="System",
-        yaxis_title="Individual Downtime (hours)",
-        yaxis2=dict(
-            title="Cumulative Downtime (hours)",
-            overlaying="y",
-            side="right"
-        ),
-        barmode="group",
-        hovermode="x unified",
-        height=400
+        title="⏱️ Expected Downtime Comparison",
+        xaxis_title="Roadmap",
+        yaxis_title="Downtime (hours)",
+        height=400,
+        showlegend=False
     )
     
     return fig
 
 # ============================================================
-# UI RENDERING FUNCTIONS
+# ENHANCED UI RENDERING FUNCTIONS
 # ============================================================
 
 def render_landscape_visualizer_tab():
-    """Render Landscape Visualizer tab [1]"""
-    st.title("🗺️ SAP Landscape Visualizer")
-    st.markdown("Visualize your SAP landscape with transport routes and upgrade sequencing [1]")
+    """Enhanced Landscape Visualizer with source/target selection [1]"""
+    st.title("🗺️ SAP Landscape Visualizer & Upgrade Roadmap Planner")
+    st.markdown("Visualize landscape, compare upgrade approaches, and get N+1 recommendations [1]")
     
-    # Option to use sample or custom landscape
+    # Source and Target Selection
+    st.markdown("### 🎯 Upgrade Planning")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        source_release = st.selectbox(
+            "Source Release:",
+            [
+                "ECC 6.0 EHP5", "ECC 6.0 EHP6", "ECC 6.0 EHP7", "ECC 6.0 EHP8",
+                "S/4HANA 2020", "S/4HANA 2021", "S/4HANA 2022", "S/4HANA 2023"
+            ],
+            key="landscape_source"
+        )
+    
+    with col2:
+        target_release = st.selectbox(
+            "Target Release:",
+            ["S/4HANA 2023", "S/4HANA 2025"],
+            key="landscape_target"
+        )
+    
+    # Load or create landscape
     use_sample = st.checkbox("Use sample landscape", value=True)
     
     if use_sample:
         landscape = create_sample_landscape()
     else:
-        st.info("Custom landscape builder coming soon. Using sample for now.")
+        st.info("Custom landscape builder - Using sample for now")
         landscape = create_sample_landscape()
     
+    # N+1 Analysis
+    if st.button("🔍 Analyze Landscape & Recommend Approach", type="primary"):
+        recommendation = analyze_landscape_and_recommend(landscape, source_release, target_release)
+        
+        if recommendation["needs_n_plus_1"]:
+            st.warning("⚠️ N+1 Intermediate Upgrade Recommended")
+            st.markdown(f"**Reason:** {recommendation['reason']}")
+            
+            st.markdown("### 📍 Recommended Upgrade Path:")
+            for step_idx, step in enumerate(recommendation["recommended_path"], 1):
+                st.markdown(f"{step_idx}. **{step}**")
+            
+            st.markdown("### ✅ Benefits of N+1 Approach:")
+            for benefit in recommendation["benefits"]:
+                st.markdown(f"- {benefit}")
+        else:
+            st.success("✅ Direct upgrade path is feasible")
+            st.info(f"You can proceed directly from {source_release} to {target_release} [1]")
+    
     # Display landscape diagram
-    st.markdown("### 🏗️ Landscape Topology")
+    st.markdown("---")
+    st.markdown("### 🏗️ Current Landscape Topology")
     fig = create_landscape_diagram(landscape)
     st.plotly_chart(fig, use_container_width=True)
     
-    # System details table
+    # System details
     st.markdown("---")
     st.markdown("### 📊 System Details")
     
     systems_df = pd.DataFrame(landscape["systems"])
-    systems_display = systems_df[["sid", "name", "type", "release", "db", "os", "users", "criticality"]]
-    systems_display.columns = ["SID", "Name", "Type", "Release", "Database", "OS", "Users", "Criticality"]
+    systems_display = systems_df[["sid", "name", "type", "release", "db", "users", "criticality"]]
+    systems_display.columns = ["SID", "Name", "Type", "Current Release", "Database", "Users", "Criticality"]
     
     st.dataframe(systems_display, use_container_width=True)
     
-    # Upgrade sequencing
+    # Upgrade Roadmap Comparison
     st.markdown("---")
-    st.markdown("### 🔄 Recommended Upgrade Sequence")
+    st.markdown("### 🔄 Upgrade Roadmap Comparison")
     
-    if st.button("🧮 Calculate Upgrade Sequence", type="primary"):
+    roadmaps = get_upgrade_roadmaps()
+    
+    # Multi-select for comparison
+    selected_roadmaps = st.multiselect(
+        "Select roadmaps to compare:",
+        list(roadmaps.keys()),
+        default=["Standard Upgrade", "DMO", "nZDM"],
+        key="roadmap_compare"
+    )
+    
+    if len(selected_roadmaps) < 2:
+        st.info("ℹ️ Select at least 2 roadmaps to compare")
+    else:
+        # Show comparison table
+        comparison_df = compare_roadmaps(selected_roadmaps)
+        st.dataframe(comparison_df, use_container_width=True)
+        
+        # Show detailed pros/cons
+        st.markdown("### 📋 Detailed Analysis")
+        
+        for rm_name in selected_roadmaps:
+            with st.expander(f"🔍 {roadmaps[rm_name]['name']} ({roadmaps[rm_name]['acronym']})"):
+                rm = roadmaps[rm_name]
+                
+                col_a, col_b = st.columns(2)
+                
+                with col_a:
+                    st.markdown("**✅ Pros:**")
+                    for pro in rm["pros"]:
+                        st.markdown(f"- {pro}")
+                
+                with col_b:
+                    st.markdown("**❌ Cons:**")
+                    for con in rm["cons"]:
+                        st.markdown(f"- {con}")
+                
+                st.markdown(f"**📝 Description:** {rm['description']}")
+                st.markdown(f"**🎯 Best For:** {rm['use_case']}")
+                st.markdown(f"**⏱️ Downtime:** {rm['downtime']}")
+                st.markdown(f"**🔧 Complexity:** {rm['complexity']}")
+                
+                st.markdown("**🔧 Tools Required:**")
+                for tool in rm["tools"]:
+                    st.markdown(f"- {tool}")
+                
+                st.markdown("**📋 Key SAP Notes:**")
+                for note in rm["sap_notes"]:
+                    st.markdown(f"- [SAP Note {note}](https://launchpad.support.sap.com/#/notes/{note})")
+        
+        # Graphical comparisons
+        st.markdown("---")
+        st.markdown("### 📊 Visual Comparisons")
+        
+        tab1, tab2 = st.tabs(["Phase Comparison", "Downtime Analysis"])
+        
+        with tab1:
+            phase_fig = create_phase_comparison_chart(selected_roadmaps)
+            st.plotly_chart(phase_fig, use_container_width=True)
+        
+        with tab2:
+            downtime_fig = create_downtime_comparison(selected_roadmaps)
+            st.plotly_chart(downtime_fig, use_container_width=True)
+    
+    # Upgrade sequencing (existing functionality)
+    st.markdown("---")
+    st.markdown("### 🔄 Recommended System Upgrade Sequence")
+    
+    if st.button("🧮 Calculate Upgrade Sequence"):
         sequence = calculate_upgrade_sequence(landscape)
         
-        # Display sequence
         for step in sequence:
             with st.expander(
-                f"Step {step['order']}: {step['sid']} - {step['name']} "
-                f"({step['downtime_hours']}h downtime)",
+                f"Step {step['order']}: {step['sid']} - {step['name']} ({step['downtime_hours']}h)",
                 expanded=(step['order'] == 1)
             ):
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.metric("Current Release", step["current_release"])
-                    st.metric("Target Release", step["target_release"])
+                    st.metric("Current", step["current_release"])
+                    st.metric("Target", step["target_release"])
                     st.metric("Downtime", f"{step['downtime_hours']} hours")
                 
                 with col2:
-                    st.metric("Cumulative Downtime", f"{step['cumulative_downtime']} hours")
-                    st.markdown(f"**Business Impact:** {step['business_impact']}")
+                    st.metric("Cumulative", f"{step['cumulative_downtime']} hours")
+                    st.markdown(f"**Impact:** {step['business_impact']}")
                     if step["parallel_possible"]:
-                        st.success("✅ Can run in parallel with other non-prod systems")
+                        st.success("✅ Can run in parallel")
                 
                 st.markdown("**Prerequisites:**")
                 for prereq in step["prerequisites"]:
                     st.markdown(f"- {prereq}")
-        
-        # Downtime chart
-        st.markdown("---")
-        downtime_fig = create_downtime_chart(sequence)
-        st.plotly_chart(downtime_fig, use_container_width=True)
-        
-        # Summary
-        total_downtime = sum(s["downtime_hours"] for s in sequence)
-        prd_downtime = next((s["downtime_hours"] for s in sequence if s["sid"] == "PRD"), 0)
-        
-        col_a, col_b, col_c = st.columns(3)
-        col_a.metric("Total Project Downtime", f"{total_downtime} hours")
-        col_b.metric("Production Downtime", f"{prd_downtime} hours")
-        col_c.metric("Number of Systems", len(sequence))
 
-# End of Part 9
+# End of Enhanced Part 9
 # ============================================================
 # SAP HELP NAVIGATOR PRO - PART 10/11
 # SUM Monitor & Guide Download Helper
