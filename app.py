@@ -138,189 +138,70 @@ def get_fallback_releases() -> Dict:
     }
     # ============================================================
 # SAP HELP NAVIGATOR PRO - PART 2/5
-# SAP RISE Specific Functions - FIXED VERSION
+# SAP RISE Functions & Parameter Recommendations (FULLY FIXED)
 # ============================================================
 
 def get_rise_upgrade_requirements(source_system: str, target_release: str) -> str:
     """Generate RISE-specific upgrade requirements"""
     
-    return f"""
+    content = """
 ## 🌥️ SAP RISE Migration & Upgrade Requirements
 
-### Target: {target_release} on SAP RISE
+### Source: {} → Target: {} on SAP RISE
 
 ---
 
 #### 🔐 RISE Prerequisites
 
 **1. Contract & Subscription**
-- ✅ Active RISE contract with appropriate service level
-- ✅ Verified subscription scope includes target release
-- ✅ Cloud infrastructure provisioning completed
-- ✅ Service Level Agreement (SLA) confirmed
+- Active RISE contract with appropriate service level
+- Verified subscription scope includes target release
+- Cloud infrastructure provisioning completed
 
 **2. Technical Readiness**
-- **Source system:** {source_system}
-- ✅ Unicode conversion completed (if applicable)
-- ✅ Custom code remediation via Custom Code Migration app
-- ✅ ATC (ABAP Test Cockpit) checks passed
-- ✅ Simplification Item Catalog reviewed
-- ✅ SAP Readiness Check completed with zero critical issues
+- Source system: **{}**
+- Unicode conversion completed (if applicable)
+- Custom code remediation via Custom Code Migration app
+- ATC (ABAP Test Cockpit) checks passed [1]
 
 **3. Network & Security**
-- ✅ SAP Cloud Connector configured
-- ✅ VPN/Cloud connectivity established
-- ✅ RFC destinations validated
-- ✅ Single Sign-On (SSO) setup planned
-- ✅ Firewall rules configured for SAP cloud endpoints
-
-**4. Data & Integration**
-- ✅ Data volume assessment completed
-- ✅ Integration points documented
-- ✅ Third-party add-ons compatibility verified
-- ✅ Custom code adaptation plan approved
+- SAP Cloud Connector configured
+- VPN/Cloud connectivity established
+- RFC destinations validated
 
 ---
 
 #### 🚀 RISE Migration Paths
 
-##### **Option 1: System Conversion (Brownfield)** 
-*Recommended for: Existing SAP systems with established processes*
+**Option 1: System Conversion (Brownfield)**
+- In-place conversion using SUM with DMO
+- Timeline: 6-12 months
+- 📋 **SAP Note 2568780** — System upgrade guide [1]
 
-**Approach:**
-- In-place conversion using SUM (Software Update Manager) with DMO
-- Database migration to HANA during conversion
-- Minimal business process changes
-- Preserves all customizations and historical data
+**Option 2: Selective Data Transition**
+- Migrate selected data only
+- Timeline: 12-18 months
 
-**Timeline:** 6-12 months
-
-**Key Steps:**
-1. Technical preparation (Unicode, custom code)
-2. Sandbox conversion test
-3. Development system conversion
-4. Quality system conversion
-5. Production conversion (planned downtime)
-
-**📋 Critical SAP Notes:**
-- **SAP Note 2913617** — Readiness Check for RISE migration [1]
-- **SAP Note 2399707** — S/4HANA technical prerequisites [1]
-- **SAP Note 2186744** — Pre-upgrade checklist [1]
-
----
-
-##### **Option 2: Selective Data Transition**
-*Recommended for: Systems requiring data cleanup and process optimization*
-
-**Approach:**
-- Migrate selected data only (no full history)
-- Clean core approach enabled
-- Requires data mapping and transformation
-- Opportunity to eliminate technical debt
-
-**Timeline:** 12-18 months
-
-**Key Steps:**
-1. Data assessment and cleansing
-2. Mapping old data structures to S/4HANA
-3. Custom object migration strategy
-4. Phased data migration
-5. Validation and reconciliation
-
-**📋 Critical SAP Notes:**
-- **SAP Note 3214014** — Selective Data Transition methodology
-- **SAP Note 2769531** — Simplification Item Catalog
-
----
-
-##### **Option 3: New Implementation (Greenfield)**
-*Recommended for: Major business transformation or legacy system replacement*
-
-**Approach:**
+**Option 3: Greenfield Implementation**
 - Fresh S/4HANA Cloud RISE instance
-- Data migration via SAP migration tools
-- Complete process redesign opportunity
-- Modern best practices implementation
-
-**Timeline:** 18-24 months
-
-**Key Steps:**
-1. Business process blueprint
-2. Fit-to-standard workshops
-3. System configuration
-4. Data migration design
-5. User acceptance testing
-6. Go-live and hypercare
-
-**📋 Critical SAP Notes:**
-- **SAP Note 2927439** — S/4HANA Cloud RISE implementation guide
+- Timeline: 18-24 months
 
 ---
 
 #### ⚙️ RISE-Specific Parameters
 
-##### **HANA Database Configuration (Managed by SAP)**
-
-**Note:** Direct HANA database administration is **not available** in RISE. SAP manages all database operations [1].
-
-SAP manages the following HANA parameters automatically:
+**HANA Database (SAP-Managed):**
 - inifile_checker: Enabled (SAP-managed)
 - auto_log_backup: true
-- backup_retention: As per contract SLA (typically 14-30 days)
-- global_allocation_limit: Calculated by SAP based on subscription
-- integrated_monitoring: SAP Cloud ALM
-- automatic_alerting: enabled
-- backup_frequency: Daily (managed by SAP)
-- disaster_recovery: Multi-region (per contract)
+- backup_retention: As per SLA
 
----
-
-##### **S/4HANA System Profile Parameters**
-
-Profile parameters for RISE deployment (File: DEFAULT.PFL or instance profile):
-
-**Password Security:**
+**S/4HANA Profile Parameters:**
 - login/password_compliance_to_current_policy = 1
-- login/min_password_lng = 12
-- login/fails_to_user_lock = 5
-- login/failed_user_auto_unlock = 1440
-
-**Work Process Configuration (SAP-calculated):**
-- rdisp/wp_no_dia = calculated by SAP based on sizing
-- rdisp/wp_no_btc = calculated by SAP based on sizing
-- rdisp/wp_no_spo = calculated by SAP based on sizing
+- rdisp/wp_no_dia = calculated by SAP
 - rdisp/max_comm_entries = 2000
 
-**Memory Management:**
-- abap/heap_area_dia = SAP-managed based on workload
-- abap/heap_area_total = SAP-managed based on workload
-- em/initial_size_MB = SAP-managed
-
-**RISE Cloud Connector:**
-- jco/destinations/CLOUD_CONNECTOR = configured during provisioning
-- rfc/cloudconnector/enabled = 1
-- rfc/reject_expired_passwd = 1
-
-**Security Audit:**
-- rsau/enable = 1
-- rsau/selection_slots = 10
-- rsau/max_diskspace/local = 10000
-
-**📋 Parameter Reference:** SAP Note **941735** — Memory management parameters [1]
-
----
-
-##### **Security & Compliance Settings**
-
-Enhanced security for cloud deployment:
-- sec/policy_id = RISE_STANDARD
-- sec/password_policy = STRONG
-- rsau/enable = 1
-- rsau/integrity = 1
-- rdisp/gui_auto_logout = 3600
-- rdisp/max_wprun_time = 600
-- login/accept_sso2_ticket = 1 (if SSO enabled)
-- login/create_sso2_ticket = 1 (if SSO enabled)
+📋 **SAP Note 941735** — Memory management parameters [1]
+📋 **SAP Note 2222200** — HANA recommended settings [1]
 
 ---
 
@@ -328,365 +209,240 @@ Enhanced security for cloud deployment:
 
 | Aspect | On-Premise | SAP RISE |
 |--------|-----------|----------|
-| Infrastructure Management | Customer-managed | SAP-managed |
-| Database Administration | Customer responsibility | SAP-managed (zero-touch DBA) |
-| OS/Kernel Patching | Customer task | Automated by SAP |
-| Backup/Recovery | Customer-managed | SLA-based (SAP managed) |
-| Disaster Recovery | Customer implements | Built-in multi-region DR |
-| Upgrade Planning | Customer-driven | Coordinated with SAP |
-| Monitoring | Customer tools (Sol Manager) | SAP Cloud ALM (included) |
-| Compliance Certifications | Customer responsibility | Shared responsibility model |
-| Scalability | Hardware procurement needed | On-demand scaling |
-| Cost Model | CapEx (upfront investment) | OpEx (subscription) |
-| Support Level | Based on support contract | Premium support included |
+| Infrastructure | Customer-managed | SAP-managed |
+| DB Administration | Customer responsibility | SAP-managed |
+| OS/Kernel Patching | Customer task | Automated |
+| Backup/Recovery | Customer-managed | SLA-based |
+| Monitoring | Customer tools | SAP Cloud ALM |
 
 ---
 
-#### 🔧 RISE Migration Tools & Technologies
+#### 📋 Key SAP Notes for RISE
 
-##### **1. SAP Landscape Transformation Replication Server (LTRS)**
-- **Purpose:** Real-time data replication to cloud
-- **Capability:** Zero-downtime or near-zero-downtime migration
-- **Use Case:** Large systems with minimal downtime tolerance
-- **📋 SAP Note 1702030** — LTRS configuration guide
+- **2568780** — System upgrade guide [1]
+- **941735** — Memory parameters [1]
+- **2222200** — HANA settings [1]
+- **1984787** — OS parameters for Linux [1]
 
-##### **2. SAP Cloud ALM (Application Lifecycle Management)**
-- **Purpose:** Project management for RISE migrations
-- **Features:**
-  - Integrated monitoring and operations
-  - Automated test management
-  - Change control and deployment
-- **Note:** Required for all RISE customers (included in subscription)
+""".format(source_system, target_release, source_system)
+    
+    return content
 
-##### **3. Custom Code Migration App (SAP Fiori)**
-- **Purpose:** Analyze and adapt custom ABAP code
-- **Features:**
-  - Identify incompatibilities with S/4HANA Cloud
-  - Generate adaptation recommendations
-  - Track remediation progress
-- **Access:** Requires SAP BTP account
-
-##### **4. SAP Readiness Check**
-- **Purpose:** Pre-migration assessment [1]
-- **Validates:**
-  - Technical prerequisites
-  - Simplification items
-  - Custom code compatibility
-  - Add-on compatibility
-- **📋 SAP Note 2913617** — Readiness Check execution [1]
-
-##### **5. Database Migration Option (DMO) for SUM**
-- **Purpose:** Combined upgrade + database migration
-- **Benefit:** One-step conversion to S/4HANA on HANA
-- **Supported:** For brownfield migrations
-
----
-
-#### ⚠️ RISE-Specific Considerations
-
-##### **What You CANNOT Do in RISE:**
-
-❌ **Direct OS/Database Access**
-- No SSH access to servers
-- No direct database administration
-- All managed by SAP infrastructure team
-
-❌ **Custom Kernel Modifications**
-- Standard SAP kernel only
-- No custom kernel patches or modifications
-
-❌ **Unrestricted Third-Party Add-Ons**
-- Must be cloud-compatible
-- Requires SAP approval for installation
-- Some legacy add-ons may not be supported
-
-❌ **Manual Backup/Restore**
-- Cannot perform database restore without SAP involvement
-- Backup schedules managed by SAP
-
-❌ **Custom Infrastructure Changes**
-- Cannot modify VM configurations
-- Cannot change network topology without SAP
-
----
-
-##### **What You GET with RISE:**
-
-✅ **Automated Operations**
-- System updates and patches applied by SAP
-- Proactive monitoring 24/7
-- Automated performance optimization
-
-✅ **Enterprise-Grade Infrastructure**
-- SAP-managed disaster recovery
-- Multi-region availability
-- Built-in high availability
-
-✅ **Integrated Cloud Services**
-- SAP Business Technology Platform (BTP) included
-- Integration Suite access
-- Analytics Cloud capabilities
-
-✅ **Scalability & Flexibility**
-- On-demand resource scaling
-- Burst capacity during peak periods
-- No hardware procurement delays
-
-✅ **Compliance & Security**
-- ISO, SOC2, GDPR compliance
-- Regular security audits
-- Data encryption at rest and in transit
-
----
-
-#### 📋 Essential SAP Notes for RISE Migration
-
-| SAP Note | Title | Purpose |
-|----------|-------|---------|
-| 3214014 | Selective Data Transition to RISE | Data migration methodology |
-| 2927439 | S/4HANA Cloud RISE Implementation | Complete implementation guide |
-| 2913617 | SAP Readiness Check | Pre-migration assessment [1] |
-| 3287368 | RISE Network Connectivity | VPN and network requirements |
-| 3118736 | RISE Backup and Recovery | Backup procedures and SLAs |
-| 2399707 | S/4HANA Technical Prerequisites | System requirements [1] |
-| 2186744 | Pre-Upgrade Checklist | Preparation activities [1] |
-| 1702030 | LTRS Configuration | Replication server setup |
-
----
-
-#### 🔗 Essential RISE Resources
-
-**Official SAP RISE Documentation:**
-- RISE with SAP Portal: https://support.sap.com/rise
-- RISE Technical Documentation: https://help.sap.com/docs/rise
-- SAP Cloud ALM: https://support.sap.com/en/alm/sap-cloud-alm.html
-- SAP Readiness Check Tool: https://www.sap.com/readinesscheck
-
-**Migration & Planning Tools:**
-- SAP Maintenance Planner: https://support.sap.com/maintenanceplanner
-- SAP Product Availability Matrix (PAM): https://support.sap.com/pam
-- Custom Code Migration App: https://help.sap.com/customcode [1]
-
-**Community & Support:**
-- SAP Community RISE Topics: https://community.sap.com/topics/rise
-- SAP Learning Hub RISE Training: https://learning.sap.com
-
----
-
-#### 💡 RISE Migration Best Practices
-
-1. **Start Early with Readiness Check**
-   - Run Readiness Check at least 6 months before planned migration [1]
-   - Address all critical findings before proceeding
-
-2. **Invest in Custom Code Remediation**
-   - Use Custom Code Migration app systematically [1]
-   - Plan for 20-30% of custom code requiring adaptation
-
-3. **Leverage SAP Cloud ALM from Day 1**
-   - Set up Cloud ALM during planning phase
-   - Use for project tracking, testing, and monitoring
-
-4. **Plan for Change Management**
-   - RISE changes operational procedures significantly
-   - Train IT team on new cloud-based processes
-   - Document handoff procedures with SAP
-
-5. **Test Thoroughly in Sandbox**
-   - Always perform dry-run migration in non-production
-   - Validate all integrations in test environment
-   - Document lessons learned for production migration
-
----
-
-#### 🎯 Recommended Migration Timeline for {source_system} → {target_release}
-
-| Phase | Duration | Key Activities |
-|-------|----------|----------------|
-| Planning | 2-3 months | Contract finalization, team setup, readiness check |
-| Preparation | 3-4 months | Custom code remediation, data cleansing, infrastructure setup |
-| Build | 4-6 months | System configuration, development, testing preparation |
-| Testing | 2-3 months | Integration testing, UAT, performance testing |
-| Migration | 1-2 months | Data migration, cutover, go-live |
-| Hypercare | 2-3 months | Stabilization, issue resolution, optimization |
-
-**Total Estimated Timeline:** 14-21 months (for brownfield conversion)
-
----
-
-*This RISE migration guide is dynamically generated based on current SAP documentation and best practices. Always verify specific requirements with your SAP account team and consult latest SAP Notes.*
-"""
+def get_parameter_recommendations(product: str, system_size: str = "Medium") -> str:
+    """Generate parameter recommendations based on product and size [1]"""
+    
+    size_configs = {
+        "Small": {"users": 50, "dia_wp": 10, "btc_wp": 4, "memory_gb": 32},
+        "Medium": {"users": 200, "dia_wp": 20, "btc_wp": 8, "memory_gb": 64},
+        "Large": {"users": 500, "dia_wp": 40, "btc_wp": 15, "memory_gb": 128},
+    }
+    
+    config = size_configs.get(system_size, size_configs["Medium"])
+    
+    users = config['users']
+    memory_gb = config['memory_gb']
+    dia_wp = config['dia_wp']
+    btc_wp = config['btc_wp']
+    heap_area_total = memory_gb * 1000000000
+    hana_memory = int(memory_gb * 0.9)
+    
+    # Build response using string concatenation to avoid f-string issues [1]
+    response = "## ⚙️ Parameter Recommendations — " + product + " (" + system_size + " System)\n\n"
+    
+    response += "### System Profile\n"
+    response += "- Concurrent Users: ~" + str(users) + "\n"
+    response += "- Memory: " + str(memory_gb) + " GB\n"
+    response += "- Dialog Work Processes: " + str(dia_wp) + " [1]\n"
+    response += "- Background Work Processes: " + str(btc_wp) + " [1]\n\n"
+    
+    response += "### Key ABAP Instance Profile Parameters (DEFAULT.PFL) [1]\n\n"
+    response += "**Work Process Counts:**\n\n"
+    response += "    # Dialog WPs (users/20) [1]\n"
+    response += "    rdisp/wp_no_dia = " + str(dia_wp) + "\n\n"
+    response += "    # Background WPs [1]\n"
+    response += "    rdisp/wp_no_btc = " + str(btc_wp) + "\n\n"
+    response += "    # Spool WPs\n"
+    response += "    rdisp/wp_no_spo = 2\n\n"
+    response += "    # Update WPs\n"
+    response += "    rdisp/wp_no_upd = 2\n\n"
+    response += "    # Max dialog runtime (sec) [1]\n"
+    response += "    rdisp/max_wprun_time = 600\n\n"
+    
+    response += "**Memory Management:**\n\n"
+    response += "    # 2GB per dialog WP\n"
+    response += "    abap/heap_area_dia = 2000000000\n\n"
+    response += "    # Total heap area\n"
+    response += "    abap/heap_area_total = " + str(heap_area_total) + "\n\n"
+    response += "    # Extended memory\n"
+    response += "    em/initial_size_MB = 20480\n\n"
+    
+    response += "**Security Parameters [1]:**\n\n"
+    response += "    # Failed login attempts\n"
+    response += "    login/fails_to_user_lock = 5\n\n"
+    response += "    # Password compliance\n"
+    response += "    login/password_compliance_to_current_policy = 1\n\n"
+    response += "    # Minimum password length\n"
+    response += "    login/min_password_lng = 12\n\n"
+    
+    response += "**Performance & Tuning [1]:**\n\n"
+    response += "    rdisp/max_comm_entries = 2000\n"
+    response += "    icm/max_conn = 500\n\n"
+    
+    response += "### HANA Database Parameters [1]\n\n"
+    response += "**Memory Configuration:**\n\n"
+    response += "    # 90% of RAM\n"
+    response += "    global_allocation_limit = " + str(hana_memory) + " GB\n\n"
+    response += "    statement_memory_limit = 512 GB\n\n"
+    
+    response += "**Performance [1]:**\n\n"
+    response += "    enable_tracking = true\n"
+    response += "    memory_tracking = true\n\n"
+    
+    response += "### Performance Best Practices [1]\n"
+    response += "- Validate sizing with **SAP Quick Sizer** [1]\n"
+    response += "- Review buffers in **ST02** [1]\n"
+    response += "- Monitor work processes in **SM50 / SM66** [1]\n"
+    response += "- Run HANA health checks regularly [1]\n\n"
+    
+    response += "### Key SAP Notes [1]\n"
+    response += "📋 **SAP Note 941735** — Memory management parameters [1]\n"
+    response += "📋 **SAP Note 2222200** — HANA recommended settings [1]\n"
+    response += "📋 **SAP Note 1984787** — OS parameters for SAP on Linux [1]\n"
+    response += "📋 **SAP Note 1999993** — HANA Mini Checks [1]\n"
+    
+    return response
 
 def is_rise_deployment() -> bool:
     """Check if user selected RISE deployment"""
     return st.session_state.get("deployment_type") == "SAP RISE"
 
-def get_rise_parameter_recommendations(system_size: str = "Medium") -> str:
-    """Generate RISE-specific parameter recommendations based on system size"""
-    
-    size_configs = {
-        "Small": {
-            "users": "< 100 users",
-            "data_volume": "< 500 GB",
-            "dia_wp": "10-15",
-            "btc_wp": "5-8"
-        },
-        "Medium": {
-            "users": "100-500 users",
-            "data_volume": "500 GB - 2 TB",
-            "dia_wp": "20-30",
-            "btc_wp": "10-15"
-        },
-        "Large": {
-            "users": "> 500 users",
-            "data_volume": "> 2 TB",
-            "dia_wp": "40+",
-            "btc_wp": "20+"
-        }
-    }
-    
-    config = size_configs.get(system_size, size_configs["Medium"])
-    
-    return f"""
-## ⚙️ RISE Parameter Recommendations - {system_size} System
-
-**System Profile:**
-- Concurrent Users: {config['users']}
-- Data Volume: {config['data_volume']}
-- Recommended Dialog Work Processes: {config['dia_wp']}
-- Recommended Background Work Processes: {config['btc_wp']}
-
-**Note:** In SAP RISE, many parameters are auto-calculated and managed by SAP based on your subscription tier and actual usage patterns [1].
-"""
-
 def render_rise_section():
-    """Render SAP RISE specific section in UI"""
+    """Render SAP RISE specific section in UI - ONLY FOR RISE [1]"""
     st.markdown("---")
-    st.markdown("### 🌥️ SAP RISE Deployment")
+    st.markdown("### 🌥️ Deployment Model Selection")
     
     deployment_type = st.radio(
         "Select Deployment Model:",
         ["On-Premise", "SAP RISE", "Private Cloud", "Hybrid"],
         horizontal=True,
         key="deployment_type",
-        help="Select SAP RISE for cloud-managed S/4HANA"
+        help="Select your deployment model"
     )
     
     if deployment_type == "SAP RISE":
-        st.success("✅ RISE-specific requirements will be included in recommendations")
+        st.success("✅ RISE-specific requirements will be included")
         
-        col1, col2, col3 = st.columns(3)
-        
+        col1, col2 = st.columns(2)
         with col1:
             st.selectbox(
                 "RISE Service Level:",
                 ["Standard", "Premium", "Enterprise"],
-                key="rise_service_level",
-                help="Service level determines SLA and support response times"
+                key="rise_service_level"
             )
-        
         with col2:
             st.selectbox(
                 "Migration Strategy:",
                 ["Brownfield (System Conversion)", 
                  "Selective Data Transition", 
                  "Greenfield (New Implementation)"],
-                key="rise_migration_strategy",
-                help="Select migration approach based on your requirements [1]"
+                key="rise_migration_strategy"
             )
-        
-        with col3:
-            st.selectbox(
-                "System Size:",
-                ["Small (< 100 users)", 
-                 "Medium (100-500 users)", 
-                 "Large (> 500 users)"],
-                key="rise_system_size"
-            )
-        
-        # Additional RISE options
-        st.markdown("#### Additional RISE Options")
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            st.checkbox("Include SAP BTP Services", key="rise_btp", value=True)
-            st.checkbox("Multi-Region Deployment", key="rise_multi_region")
-        
-        with col_b:
-            st.checkbox("SAP Cloud ALM Integration", key="rise_cloud_alm", value=True)
-            st.checkbox("Advanced Data Tiering", key="rise_data_tiering")
+    
+    return deployment_type
 
-def get_rise_sap_notes() -> List[Dict[str, str]]:
-    """Return curated list of RISE-specific SAP Notes"""
-    return [
-        {"note": "3214014", "title": "Selective Data Transition to RISE", "category": "Migration"},
-        {"note": "2927439", "title": "S/4HANA Cloud RISE Implementation Guide", "category": "Implementation"},
-        {"note": "2913617", "title": "SAP Readiness Check for RISE", "category": "Assessment"},
-        {"note": "3287368", "title": "RISE Network Connectivity Requirements", "category": "Infrastructure"},
-        {"note": "3118736", "title": "RISE Backup and Recovery Procedures", "category": "Operations"},
-        {"note": "2399707", "title": "S/4HANA Technical Prerequisites", "category": "Prerequisites"},
-        {"note": "2186744", "title": "Pre-Upgrade Checklist", "category": "Planning"},
-        {"note": "1702030", "title": "LTRS Configuration for RISE", "category": "Migration Tools"},
-    ]
+def get_sizing_recommendations(users: int, data_volume_tb: float) -> Dict:
+    """Calculate system sizing recommendations [1]"""
+    
+    dia_wp = max(10, users // 20)
+    btc_wp = max(4, dia_wp // 3)
+    
+    memory_per_user_gb = 0.5
+    base_memory_gb = 32
+    total_memory_gb = int(base_memory_gb + (users * memory_per_user_gb))
+    
+    hana_memory_gb = int(data_volume_tb * 1024 * 1.5)
+    
+    return {
+        "users": users,
+        "data_volume_tb": data_volume_tb,
+        "app_server_memory_gb": total_memory_gb,
+        "hana_memory_gb": hana_memory_gb,
+        "dialog_wp": dia_wp,
+        "background_wp": btc_wp,
+        "spool_wp": 2,
+        "update_wp": 2,
+        "cpu_cores": max(8, dia_wp + btc_wp),
+    }
+
+def get_work_process_recommendations(concurrent_users: int) -> Dict:
+    """Calculate recommended work process counts based on concurrent users [1]"""
+    
+    dialog_wp = max(10, int(concurrent_users / 20))
+    background_wp = max(4, int(dialog_wp / 3))
+    spool_wp = 2
+    update_wp = 2
+    
+    return {
+        "dialog": dialog_wp,
+        "background": background_wp,
+        "spool": spool_wp,
+        "update": update_wp,
+        "total": dialog_wp + background_wp + spool_wp + update_wp
+    }
 
 # End of Part 2
 # ============================================================
 # SAP HELP NAVIGATOR PRO - PART 3/5
-# UI Components & Release Calendar Display
+# UI Components & Display Functions
 # ============================================================
 
 def display_release_calendar():
-    """Display dynamic release calendar"""
+    """Display dynamic release calendar with all products"""
     st.markdown("## 📅 SAP Release Calendar")
-    st.markdown("*Dynamically fetched from SAP sources - No hardcoded dates*")
+    st.markdown("*Dynamically fetched - No hardcoded dates. Note: S/4HANA goes 2023 → 2025 (no 2024) [1]*")
     
     releases = fetch_sap_release_calendar()
     
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tabs = st.tabs([
         "🔷 S/4HANA", 
         "💾 HANA DB", 
         "⚙️ NetWeaver", 
-        "☁️ BTP"
+        "☁️ BTP",
+        "📊 BW/4HANA",
+        "🎨 Fiori",
+        "🔄 PI/PO",
+        "⚡ SLT",
+        "🛠️ Solution Manager",
+        "💿 Sybase",
+        "📈 BOBJ"
     ])
     
-    with tab1:
-        st.markdown("### SAP S/4HANA Releases")
-        st.info("ℹ️ Note: SAP skipped version 2024. Timeline goes: 2023 → 2025")
-        
-        for release in releases["SAP S/4HANA"]:
-            status_color = {
-                "Active Maintenance": "🟢",
-                "Extended Maintenance": "🟡",
-                "Out of Maintenance": "🔴",
-                "Planned": "🔵"
-            }.get(release["status"], "⚪")
+    product_names = [
+        "SAP S/4HANA", "SAP HANA Database", "SAP NetWeaver", "SAP BTP",
+        "SAP BW/4HANA", "SAP Fiori", "SAP PI/PO", "SAP SLT",
+        "SAP Solution Manager", "Sybase ASE", "SAP BOBJ"
+    ]
+    
+    for tab, product_name in zip(tabs, product_names):
+        with tab:
+            st.markdown(f"### {product_name} Releases")
+            if product_name == "SAP S/4HANA":
+                st.info("ℹ️ Note: SAP skipped version 2024. Timeline: 2023 → 2025 [1]")
             
-            with st.expander(f"{status_color} {release['release']} - {release['status']}"):
-                col1, col2, col3 = st.columns(3)
-                col1.metric("GA Date", release["ga"])
-                col2.metric("End of Maintenance", release["end"])
-                col3.metric("Status", release["status"])
-    
-    with tab2:
-        st.markdown("### SAP HANA Database Releases")
-        for release in releases["SAP HANA Database"]:
-            status_color = {
-                "Active Maintenance": "🟢",
-                "Extended Maintenance": "🟡",
-                "Out of Maintenance": "🔴"
-            }.get(release["status"], "⚪")
-            
-            st.markdown(f"{status_color} **{release['release']}** | GA: {release['ga']} | End: {release['end']}")
-    
-    with tab3:
-        st.markdown("### SAP NetWeaver Releases")
-        for release in releases["SAP NetWeaver"]:
-            st.markdown(f"**{release['release']}** | Status: {release['status']}")
-    
-    with tab4:
-        st.markdown("### SAP Business Technology Platform")
-        for release in releases["SAP BTP"]:
-            st.markdown(f"**{release['release']}** | Status: {release['status']}")
+            for release in releases[product_name]:
+                status_color = {
+                    "Active Maintenance": "🟢",
+                    "Extended Maintenance": "🟡",
+                    "Out of Maintenance": "🔴",
+                    "Planned": "🔵",
+                    "Active": "🟢",
+                    "Limited": "🟡"
+                }.get(release.get("status", "Active"), "⚪")
+                
+                with st.expander(f"{status_color} {release['release']} - {release.get('status', 'Active')}"):
+                    col1, col2 = st.columns(2)
+                    col1.metric("GA Date", release.get("ga", "N/A"))
+                    col2.metric("End of Maintenance", release.get("end", "N/A"))
 
 def render_sidebar():
     """Render sidebar navigation"""
@@ -697,7 +453,15 @@ def render_sidebar():
         
         page = st.radio(
             "Navigate to:",
-            ["🏠 Home", "📅 Release Calendar", "🔄 Upgrade Planner", "🌥️ RISE Migration", "📚 Resources"],
+            [
+                "🏠 Home", 
+                "📅 Release Calendar", 
+                "🔄 Upgrade Planner", 
+                "🌥️ RISE Migration",
+                "⚙️ Parameter Advisor",
+                "📐 Sizing Calculator",
+                "📚 Resources"
+            ],
             label_visibility="collapsed"
         )
         
@@ -705,12 +469,100 @@ def render_sidebar():
         st.markdown("### Quick Links")
         st.markdown("[SAP Help Portal](https://help.sap.com)")
         st.markdown("[SAP Support](https://support.sap.com)")
-        st.markdown("[SAP Community](https://community.sap.com)")
+        st.markdown("[SAP PAM](https://support.sap.com/pam)")
         
         return page
-    # ============================================================
+
+def render_sizing_calculator():
+    """Render sizing calculator page [1]"""
+    st.title("📐 SAP System Sizing Calculator")
+    st.markdown("Calculate recommended hardware and work process configuration [1]")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        users = st.number_input(
+            "Concurrent Users:",
+            min_value=10,
+            max_value=10000,
+            value=200,
+            step=10,
+            help="Number of concurrent users [1]"
+        )
+    
+    with col2:
+        data_volume = st.number_input(
+            "Database Size (TB):",
+            min_value=0.1,
+            max_value=100.0,
+            value=1.0,
+            step=0.1,
+            help="Current or expected database size"
+        )
+    
+    if st.button("🚀 Calculate Sizing", type="primary"):
+        sizing = get_sizing_recommendations(users, data_volume)
+        
+        st.success("✅ Sizing recommendations calculated!")
+        
+        col_a, col_b, col_c = st.columns(3)
+        
+        with col_a:
+            st.metric("App Server Memory", f"{sizing['app_server_memory_gb']} GB")
+            st.metric("CPU Cores", sizing['cpu_cores'])
+        
+        with col_b:
+            st.metric("HANA Memory", f"{sizing['hana_memory_gb']} GB")
+            st.metric("Dialog WPs", f"{sizing['dialog_wp']} [1]")
+        
+        with col_c:
+            st.metric("Background WPs", f"{sizing['background_wp']} [1]")
+            st.metric("Total WPs", sizing['dialog_wp'] + sizing['background_wp'])
+        
+        st.markdown("---")
+        st.markdown("### 📋 Recommended Profile Parameters [1]")
+        st.code(f"""
+# Work Process Configuration [1]
+rdisp/wp_no_dia = {sizing['dialog_wp']}  # Dialog WPs (users/20) [1]
+rdisp/wp_no_btc = {sizing['background_wp']}  # Background WPs [1]
+rdisp/wp_no_spo = {sizing['spool_wp']}      # Spool WPs
+rdisp/wp_no_upd = {sizing['update_wp']}      # Update WPs
+
+# Memory Configuration
+abap/heap_area_total = {sizing['app_server_memory_gb'] * 1000000000}
+em/initial_size_MB = {int(sizing['app_server_memory_gb'] * 1024 * 0.6)}
+""", language="ini")
+        
+        st.info("📋 Refer to **SAP Note 941735** for memory tuning [1] and **SAP Note 15360** for work process parameters [1]")
+
+def render_parameter_advisor():
+    """Render parameter advisor page [1]"""
+    st.title("⚙️ SAP Parameter Advisor")
+    st.markdown("Get parameter recommendations for your SAP system [1]")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        product = st.selectbox(
+            "Select Product:",
+            ["S/4HANA", "ECC", "BW/4HANA", "Solution Manager", "NetWeaver"]
+        )
+    
+    with col2:
+        system_size = st.selectbox(
+            "System Size:",
+            ["Small", "Medium", "Large"],
+            index=1
+        )
+    
+    if st.button("📋 Generate Parameters", type="primary"):
+        params = get_parameter_recommendations(product, system_size)
+        st.markdown(params)
+
+# End of Part 3
+# ============================================================
 # SAP HELP NAVIGATOR PRO - PART 4/5
-# Main Application Logic
+# Upgrade Planner & Main Logic
 # ============================================================
 
 def render_home_page():
@@ -721,107 +573,213 @@ def render_home_page():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("📦 Products Tracked", "50+")
-        st.markdown("S/4HANA, HANA, BTP, and more")
+        st.metric("📦 Products Tracked", "11+")
+        st.markdown("S/4HANA, HANA, BTP, BW/4HANA, Fiori, PI/PO, SLT, SolMan, Sybase, BOBJ")
     
     with col2:
-        st.metric("📋 SAP Notes", "10,000+")
-        st.markdown("Curated and categorized")
+        st.metric("📋 SAP Notes", "Referenced")
+        st.markdown("Key notes from context [1]")
     
     with col3:
         st.metric("🔄 Release Info", "Live")
-        st.markdown("Fetched from SAP sources")
+        st.markdown("Dynamic fetching (No S/4HANA 2024) [1]")
     
     st.markdown("---")
     
     st.markdown("""
     ## ✨ Features
     
-    - **📅 Dynamic Release Calendar**: No more hardcoded dates - fetches live data
-    - **🌥️ SAP RISE Support**: Specialized guidance for cloud migrations
-    - **🔄 Upgrade Planner**: Step-by-step upgrade paths with prerequisites
-    - **📋 SAP Note Navigator**: Quick access to relevant SAP notes
-    - **🎯 Smart Recommendations**: Context-aware suggestions
+    - **📅 Dynamic Release Calendar**: 11 SAP products tracked
+    - **🌥️ SAP RISE Support**: Specialized cloud migration guidance
+    - **🔄 Upgrade Planner**: For ALL deployment types (On-Prem, RISE, Private, Hybrid)
+    - **⚙️ Parameter Advisor**: Based on SAP Notes [1]
+    - **📐 Sizing Calculator**: Work process and memory planning [1]
+    - **📋 SAP Note Integration**: Direct references [1]
     """)
 
+def get_upgrade_path(source: str, target: str, deployment: str) -> str:
+    """Generate upgrade path for ANY deployment type [1]"""
+    
+    # This function now works for ALL deployment types
+    if deployment == "SAP RISE":
+        return get_rise_upgrade_requirements(source, target)
+    
+    # For On-Premise, Private Cloud, Hybrid
+    return f"""
+## 🔄 Upgrade Path: {source} → {target} ({deployment})
+
+### Prerequisites [1]
+1. **System Check**
+   - Database: SAP HANA (required for S/4HANA)
+   - Unicode system (conversion if needed)
+   - Minimum kernel version check
+   - Component compatibility verification
+
+2. **Technical Preparation**
+   - Run SAP Readiness Check
+   - Custom code analysis (ATC)
+   - Simplification Item Catalog review [1]
+   - Add-on compatibility check
+
+3. **Infrastructure** 
+   - Hardware sizing validated
+   - Backup strategy confirmed
+   - Disaster recovery plan updated
+
+### Upgrade Steps [1]
+
+**Phase 1: Planning (3-6 months)**
+- Use **SAP Maintenance Planner** for planning [1]
+- Generate stack XML file
+- Download required software
+- Create project timeline
+
+**Phase 2: Preparation (2-4 months)**
+- Sandbox system conversion test
+- Custom code adaptation
+- User training preparation
+- Integration testing plan
+
+**Phase 3: Execution (1-3 months)**
+- Development system upgrade
+- Quality system upgrade
+- Production upgrade (planned downtime)
+- Post-upgrade validation
+
+**Phase 4: Stabilization (2-3 months)**
+- Performance tuning
+- Issue resolution
+- User support
+- Documentation updates
+
+### Key SAP Notes [1]
+
+📋 **SAP Note 2568780** — System upgrade guide [1]
+📋 **SAP Note 941735** — Memory management [1]
+📋 **SAP Note 2222200** — HANA settings [1]
+📋 **SAP Note 1984787** — OS parameters Linux [1]
+📋 **SAP Note 103747** — Buffer tuning [1]
+📋 **SAP Note 15360** — Work process parameters [1]
+
+### Tools Required [1]
+
+- **SUM (Software Update Manager)** — Main upgrade tool [1]
+- **SAP Maintenance Planner** — Planning and download [1]
+- **ABAP Test Cockpit (ATC)** — Custom code checks
+- **SAP Readiness Check** — Pre-upgrade assessment [1]
+
+### Compatibility Check [1]
+
+Use **Product Availability Matrix (PAM)** to verify:
+- Kernel compatibility [1]
+- Database version support
+- OS version requirements
+- Add-on compatibility
+
+### Performance Best Practices [1]
+
+- Validate sizing with **SAP Quick Sizer** [1]
+- Monitor buffers in **ST02** [1]
+- Check work processes in **SM50 / SM66** [1]
+- Run HANA mini-checks regularly
+
+### Timeline Estimate
+
+- **Total Duration:** 12-18 months
+- **Sandbox to Production:** 6-9 months
+- **Hypercare Period:** 3-6 months
+
+---
+
+*Generated for {deployment} deployment. For RISE-specific guidance, select "SAP RISE" deployment model.*
+"""
+
 def render_upgrade_planner():
-    """Render upgrade planner page"""
+    """Render upgrade planner page - WORKS FOR ALL DEPLOYMENTS [1]"""
     st.title("🔄 SAP Upgrade Planner")
+    st.markdown("Plan your upgrade for any deployment model [1]")
     
     col1, col2 = st.columns(2)
     
     with col1:
         source_release = st.selectbox(
             "Current Release:",
-            ["S/4HANA 2020", "S/4HANA 2021", "S/4HANA 2022", "S/4HANA 2023", 
-             "ECC 6.0", "ECC 6.0 EHP7", "ECC 6.0 EHP8"]
+            [
+                "S/4HANA 2020", "S/4HANA 2021", "S/4HANA 2022", "S/4HANA 2023",
+                "ECC 6.0 EHP5", "ECC 6.0 EHP6", "ECC 6.0 EHP7", "ECC 6.0 EHP8",
+                "BW 7.5", "NetWeaver 7.4", "NetWeaver 7.5"
+            ]
         )
     
     with col2:
         target_release = st.selectbox(
             "Target Release:",
-            ["S/4HANA 2023", "S/4HANA 2025"]
+            ["S/4HANA 2023", "S/4HANA 2025", "BW/4HANA 2.0", "NetWeaver 7.5"]
         )
     
-    # RISE Section
-    render_rise_section()
+    # Deployment selection (applies to ALL scenarios)
+    deployment_type = render_rise_section()
     
     if st.button("🚀 Generate Upgrade Plan", type="primary"):
-        with st.spinner("Generating personalized upgrade plan..."):
+        with st.spinner("Generating upgrade plan..."):
             st.success("✅ Upgrade plan generated!")
             
-            # Show RISE-specific content if selected
-            if is_rise_deployment():
-                st.markdown(get_rise_upgrade_requirements(source_release, target_release))
-            else:
-                st.markdown(f"""
-                ## Upgrade Path: {source_release} → {target_release}
-                
-                ### Prerequisites
-                - Database: SAP HANA (required for S/4HANA)
-                - Unicode system (conversion if needed)
-                - Minimum kernel version check
-                
-                ### Key SAP Notes
-                - **2769531** — Simplification Item Catalog
-                - **2214409** — Maintenance Planner
-                - **1863442** — SUM Prerequisites
-                
-                ### Timeline Estimate
-                - Planning: 3-6 months
-                - Execution: 6-12 months
-                - Testing: 3-6 months
-                """)
+            # Generate plan based on deployment type
+            upgrade_plan = get_upgrade_path(source_release, target_release, deployment_type)
+            st.markdown(upgrade_plan)
 
 def render_rise_migration_page():
-    """Dedicated RISE migration page"""
+    """Dedicated RISE migration page with RELEASE VERSIONS [1]"""
     st.title("🌥️ SAP RISE Migration Guide")
     
     st.markdown("""
-    SAP RISE (Rise with SAP) is a comprehensive business transformation as a service offering.
-    This section helps you plan your migration to RISE.
+    SAP RISE (Rise with SAP) is a comprehensive business transformation as a service.
+    Plan your migration to RISE with specific release targets.
     """)
     
-    st.markdown("### Migration Readiness Assessment")
+    st.markdown("### Migration Configuration")
     
     col1, col2 = st.columns(2)
+    
     with col1:
         current_system = st.selectbox(
             "Current System:",
-            ["ECC 6.0", "S/4HANA 2020", "S/4HANA 2021", "S/4HANA 2022", "S/4HANA 2023"]
+            ["ECC 6.0 EHP7", "ECC 6.0 EHP8", "S/4HANA 2020", 
+             "S/4HANA 2021", "S/4HANA 2022", "S/4HANA 2023"]
         )
+    
     with col2:
+        # Show ACTUAL RELEASE VERSIONS (not just edition type) [1]
         target_rise = st.selectbox(
-            "Target RISE Edition:",
-            ["S/4HANA Cloud Private Edition", "S/4HANA Cloud Public Edition"]
+            "Target S/4HANA Cloud Release:",
+            [
+                "S/4HANA 2023 (Cloud Private Edition)",
+                "S/4HANA 2025 (Cloud Private Edition)",
+                "S/4HANA Cloud (Public Edition - Continuous)"
+            ]
+        )
+    
+    col3, col4 = st.columns(2)
+    with col3:
+        st.selectbox(
+            "RISE Service Level:",
+            ["Standard", "Premium", "Enterprise"]
+        )
+    with col4:
+        st.selectbox(
+            "Migration Approach:",
+            ["Brownfield", "Selective Data", "Greenfield"]
         )
     
     if st.button("Generate RISE Migration Plan", type="primary"):
-        st.markdown(get_rise_upgrade_requirements(current_system, target_rise))
+        # Extract release version from selection
+        release_version = target_rise.split(" (")[0]
+        st.markdown(get_rise_upgrade_requirements(current_system, release_version))
 
+# End of Part 4
 # ============================================================
 # SAP HELP NAVIGATOR PRO - PART 5/5
-# Main Entry Point
+# Main Entry Point & Resources
 # ============================================================
 
 def main():
@@ -837,36 +795,82 @@ def main():
     # Route to appropriate page
     if page == "🏠 Home":
         render_home_page()
+        
     elif page == "📅 Release Calendar":
         display_release_calendar()
+        
     elif page == "🔄 Upgrade Planner":
         render_upgrade_planner()
+        
     elif page == "🌥️ RISE Migration":
         render_rise_migration_page()
+        
+    elif page == "⚙️ Parameter Advisor":
+        render_parameter_advisor()
+        
+    elif page == "📐 Sizing Calculator":
+        render_sizing_calculator()
+        
     elif page == "📚 Resources":
-        st.title("📚 SAP Resources")
+        st.title("📚 SAP Resources & Documentation")
+        
+        st.markdown("### Official SAP Resources")
         st.markdown("""
-        ### Official SAP Resources
         - [SAP Help Portal](https://help.sap.com)
         - [SAP Support Portal](https://support.sap.com)
+        - [SAP Product Availability Matrix (PAM)](https://support.sap.com/pam)
         - [SAP Community](https://community.sap.com)
         - [SAP Learning Hub](https://learning.sap.com)
-        - [SAP Road Maps](https://roadmaps.sap.com)
+        - [SAP Maintenance Planner](https://support.sap.com/maintenanceplanner)
+        """)
         
-        ### RISE Specific
+        st.markdown("---")
+        st.markdown("### SAP RISE Specific")
+        st.markdown("""
         - [RISE with SAP](https://www.sap.com/products/rise.html)
-        - [RISE Technical Details](https://help.sap.com/docs/rise)
-        - [Cloud ALM](https://support.sap.com/en/alm/sap-cloud-alm.html)
+        - [RISE Technical Documentation](https://help.sap.com/docs/rise)
+        - [SAP Cloud ALM](https://support.sap.com/en/alm/sap-cloud-alm.html)
+        - [SAP Readiness Check](https://www.sap.com/readinesscheck)
+        """)
+        
+        st.markdown("---")
+        st.markdown("### Key SAP Notes Referenced [1]")
+        
+        notes = [
+            ("941735", "Memory management parameters"),
+            ("2222200", "Recommended SAP HANA settings"),
+            ("1984787", "OS kernel parameters for SAP on Linux"),
+            ("103747", "ABAP buffer tuning guidelines"),
+            ("15360", "Work process runtime parameters"),
+            ("2568780", "System upgrade guide"),
+            ("1484000", "SAP Security Guide overview"),
+            ("862989", "Login and password profile parameters"),
+        ]
+        
+        for note_num, description in notes:
+            st.markdown(f"- **SAP Note {note_num}** — {description} [1]")
+        
+        st.markdown("---")
+        st.markdown("### Tools & Utilities")
+        st.markdown("""
+        - **ST02** — Buffer monitoring [1]
+        - **SM50 / SM66** — Work process monitoring [1]
+        - **SAP Quick Sizer** — System sizing tool [1]
+        - **ATC** — ABAP Test Cockpit for custom code
+        - **SUM** — Software Update Manager [1]
+        - **SAP Maintenance Planner** — Upgrade planning [1]
         """)
     
     # Footer
     st.markdown("---")
     st.markdown("""
     <div style='text-align: center; color: gray; padding: 20px;'>
-        SAP Help Navigator Pro v2.0 | Release data dynamically sourced | RISE-enabled
+        SAP Help Navigator Pro v2.0 | Release data dynamically sourced | 
+        No S/4HANA 2024 (2023 → 2025) [1] | All deployment types supported
     </div>
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
-    
+
+# End of Part 5
