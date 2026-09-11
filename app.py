@@ -493,7 +493,7 @@ UPGRADE_PATHS = {
             {"type":"System Conversion","tool":"SUM+DMO","stops":[],"note":"2913617"},
         "SAP S/4HANA 2023":
             {"type":"System Conversion","tool":"SUM+DMO","stops":[],"note":"2913617"},
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"System Conversion","tool":"SUM+DMO",
              "stops":["Apply latest SP first"],"note":"2913617"},
     },
@@ -510,7 +510,7 @@ UPGRADE_PATHS = {
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
         "SAP S/4HANA 2023":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
     },
     "SAP S/4HANA 1809": {
@@ -524,7 +524,7 @@ UPGRADE_PATHS = {
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
         "SAP S/4HANA 2023":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
     },
     "SAP S/4HANA 1909": {
@@ -536,7 +536,7 @@ UPGRADE_PATHS = {
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
         "SAP S/4HANA 2023":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
     },
     "SAP S/4HANA 2020": {
@@ -546,7 +546,7 @@ UPGRADE_PATHS = {
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
         "SAP S/4HANA 2023":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
     },
     "SAP S/4HANA 2021": {
@@ -554,17 +554,17 @@ UPGRADE_PATHS = {
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
         "SAP S/4HANA 2023":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
     },
     "SAP S/4HANA 2022": {
         "SAP S/4HANA 2023":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
     },
     "SAP S/4HANA 2023": {
-        "SAP S/4HANA 2024":
+        "SAP S/4HANA 2025":
             {"type":"Release Upgrade","tool":"SUM","stops":[],"note":"2568780"},
     },
     "SAP HANA 1.0 SPS12": {
@@ -4204,7 +4204,7 @@ SAP_RELEASES = {
         {"release": "S/4HANA 2021", "ga": "2021-10-01", "end": "2029-12-31"},
         {"release": "S/4HANA 2022", "ga": "2022-10-01", "end": "2030-12-31"},
         {"release": "S/4HANA 2023", "ga": "2023-10-01", "end": "2031-12-31"},
-        {"release": "S/4HANA 2024", "ga": "2024-10-01", "end": "2032-12-31"},
+        {"release": "S/4HANA 2025", "ga": "2024-10-01", "end": "2032-12-31"},
     ],
     "SAP ECC": [
         {"release": "ECC 6.0 EHP0", "ga": "2005-01-01", "end": "2025-12-31"},
