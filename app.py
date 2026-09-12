@@ -3445,7 +3445,7 @@ def search_sap_docs_with_gemini(
         if not initialize_gemini(api_key):
             return {"success": False, "error": "API initialization failed"}
         
-        model = genai.GenerativeModel('gemini-1.0-pro')
+        model = genai.GenerativeModel("gemini-pro")
         
         # Craft SAP-specific prompt
         prompt = f"""
