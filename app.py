@@ -3548,7 +3548,6 @@ def export_batch_results(results: List[Dict], format_type: str = "markdown") -> 
 # ============================================================
 # UI RENDERING FUNCTIONS
 # ============================================================
-
 def render_gemini_search_tab():
     """Render Gemini-powered search tab [1]"""
     st.title("🔍 AI-Powered SAP Search (Gemini)")
@@ -3646,6 +3645,7 @@ def render_gemini_search_tab():
                 )
             else:
                 st.error(f"❌ Error: {result.get('error', 'Unknown error')}")
+
 def render_batch_qa_tab():
     """Render Batch Q&A tab [1]"""
     st.title("📦 Batch Question Processing")
@@ -3671,7 +3671,8 @@ def render_batch_qa_tab():
     elif not api_key:
         st.info("ℹ️ Enter your Google Gemini API key to use batch processing")
         return
-      
+    
+    # ... rest of the function remains the same      
     st.markdown("---")
     
     # Input methods
