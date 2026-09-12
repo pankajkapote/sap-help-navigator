@@ -3554,16 +3554,33 @@ def render_gemini_search_tab():
     st.title("🔍 AI-Powered SAP Search (Gemini)")
     st.markdown("Ask questions about SAP and get intelligent answers powered by Google Gemini [1]")
     
-    # API Key input
+    # API Key Configuration
     st.markdown("### 🔑 API Configuration")
+    
+    # Load API key from secrets first, then allow manual override
+    secret_api_key = ""
+    try:
+        secret_api_key = st.secrets.get("gemini_api_key", "")
+    except Exception:
+        pass
+    
+    # Use secret key as default if available
+    default_key = secret_api_key if secret_api_key else st.session_state.get("api_key", "")
+    
     api_key = st.text_input(
         "Google Gemini API Key:",
         type="password",
+        value=default_key,
         help="Get your API key from https://makersuite.google.com/app/apikey",
-        key="gemini_api_key"
+        key="gemini_api_key_input"
     )
     
-    if not api_key:
+    # Show status
+    if secret_api_key:
+        st.success("✅ API key loaded from Streamlit secrets")
+    elif api_key:
+        st.info("ℹ️ Using manually entered API key")
+    else:
         st.info("ℹ️ Enter your Google Gemini API key to use AI-powered search")
         st.markdown("""
         **How to get API key:**
@@ -3572,6 +3589,12 @@ def render_gemini_search_tab():
         3. Click "Create API Key"
         4. Copy and paste above
         """)
+        return
+    
+    # Use whichever key is available
+    active_api_key = api_key if api_key else secret_api_key
+    
+    if not active_api_key:
         return
     
     # Question input
@@ -3597,7 +3620,7 @@ def render_gemini_search_tab():
     
     if st.button("🚀 Search with AI", type="primary", disabled=not question):
         with st.spinner("🤔 Searching SAP documentation with Gemini AI..."):
-            result = search_sap_docs_with_gemini(question, product, api_key)
+            result = search_sap_docs_with_gemini(question, product, active_api_key)
             
             if result["success"]:
                 st.success("✅ Answer generated successfully!")
@@ -3623,23 +3646,32 @@ def render_gemini_search_tab():
                 )
             else:
                 st.error(f"❌ Error: {result.get('error', 'Unknown error')}")
-
 def render_batch_qa_tab():
     """Render Batch Q&A tab [1]"""
     st.title("📦 Batch Question Processing")
     st.markdown("Process multiple SAP questions at once with AI [1]")
     
-    # API Key
+    # Load API key from secrets
+    secret_api_key = ""
+    try:
+        secret_api_key = st.secrets.get("gemini_api_key", "")
+    except Exception:
+        pass
+    
+    # API Key input (with secret as default)
     api_key = st.text_input(
         "Google Gemini API Key:",
         type="password",
+        value=secret_api_key,
         key="batch_api_key"
     )
     
-    if not api_key:
+    if secret_api_key:
+        st.success("✅ API key loaded from Streamlit secrets")
+    elif not api_key:
         st.info("ℹ️ Enter your Google Gemini API key to use batch processing")
         return
-    
+      
     st.markdown("---")
     
     # Input methods
