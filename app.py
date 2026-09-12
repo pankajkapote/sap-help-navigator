@@ -3563,16 +3563,79 @@ def render_gemini_search_tab():
     # Show status based on key availability
     if api_key:
         st.success("✅ API key loaded from Streamlit secrets (hidden for security)")
-        # DO NOT show any input field or value
     else:
         st.warning("⚠️ Gemini API key not configured in secrets [1]")
         st.info("Please contact your administrator to configure the API key")
-        return  # Exit early - don't show rest of the page
+        return  # Exit early if no API key
     
-    # Continue with question input (rest of your code)
+    # Question input section (THIS WAS MISSING)
     st.markdown("---")
     st.markdown("### ❓ Ask Your Question")
     
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        question = st.text_area(
+            "Enter your SAP question:",
+            placeholder="e.g., How do I configure RFC destinations in S/4HANA?",
+            height=100,
+            key="gemini_question"
+        )
+    
+    with col2:
+        product = st.selectbox(
+            "Product Context:",
+            ["SAP General", "S/4HANA", "SAP HANA", "NetWeaver", "BW/4HANA"],
+            key="gemini_product"
+        )
+    
+    # Quick question buttons (optional, based on context [1])
+    st.markdown("**Quick Questions:**")
+    quick_questions = [
+        "How to check SAP kernel version?",
+        "What is transaction code STMS?",
+        "How to configure transport routes?",
+        "What is SAP Note 2568780?"
+    ]
+    
+    cols = st.columns(4)
+    for idx, quick_q in enumerate(quick_questions):
+        with cols[idx]:
+            if st.button(quick_q, key=f"quick_{idx}"):
+                # Write directly to session state [1]
+                st.session_state.gemini_question = quick_q
+                st.rerun()
+    
+    # Search button
+    if st.button("🚀 Search with AI", type="primary", disabled=not question):
+        with st.spinner("🤔 Searching SAP documentation with Gemini AI..."):
+            result = search_sap_docs_with_gemini(question, product, api_key)
+            
+            if result["success"]:
+                st.success("✅ Answer generated successfully!")
+                
+                # Display answer
+                st.markdown("### 💡 Answer")
+                st.markdown(result["answer"])
+                
+                # Store for HTML report
+                st.session_state["last_qa"] = {
+                    "product": product,
+                    "question": question,
+                    "answer": result["answer"],
+                    "sources": []
+                }
+                
+                # Download option
+                st.download_button(
+                    label="💾 Download Answer",
+                    data=result["answer"],
+                    file_name=f"SAP_Answer_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown"
+                )
+            else:
+                st.error(f"❌ Error: {result.get('error', 'Unknown error')}")
+                
 def render_batch_qa_tab():
     """Render Batch Q&A tab [1]"""
     st.title("📦 Batch Question Processing")
