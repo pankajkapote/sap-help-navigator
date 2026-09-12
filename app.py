@@ -3568,28 +3568,11 @@ def render_gemini_search_tab():
         st.info("Please contact your administrator to configure the API key")
         return  # Exit early if no API key
     
-    # Question input section (THIS WAS MISSING)
+    # Question input section
     st.markdown("---")
     st.markdown("### ❓ Ask Your Question")
     
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        question = st.text_area(
-            "Enter your SAP question:",
-            placeholder="e.g., How do I configure RFC destinations in S/4HANA?",
-            height=100,
-            key="gemini_question"
-        )
-    
-    with col2:
-        product = st.selectbox(
-            "Product Context:",
-            ["SAP General", "S/4HANA", "SAP HANA", "NetWeaver", "BW/4HANA"],
-            key="gemini_product"
-        )
-    
-    # Quick question buttons (optional, based on context [1])
+    # Quick question buttons - BEFORE the text_area widget [1]
     st.markdown("**Quick Questions:**")
     quick_questions = [
         "How to check SAP kernel version?",
@@ -3598,13 +3581,36 @@ def render_gemini_search_tab():
         "What is SAP Note 2568780?"
     ]
     
+    # Initialize session state if not exists
+    if "gemini_question" not in st.session_state:
+        st.session_state.gemini_question = ""
+    
     cols = st.columns(4)
     for idx, quick_q in enumerate(quick_questions):
         with cols[idx]:
+            # Use a different approach - set the value BEFORE rendering [1]
             if st.button(quick_q, key=f"quick_{idx}"):
-                # Write directly to session state [1]
                 st.session_state.gemini_question = quick_q
                 st.rerun()
+    
+    # NOW create the text_area with the session state value [1]
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        question = st.text_area(
+            "Enter your SAP question:",
+            value=st.session_state.gemini_question,  # Use session state as default
+            placeholder="e.g., How do I configure RFC destinations in S/4HANA?",
+            height=100,
+            key="gemini_question"  # This binds to session state
+        )
+    
+    with col2:
+        product = st.selectbox(
+            "Product Context:",
+            ["SAP General", "S/4HANA", "SAP HANA", "NetWeaver", "BW/4HANA"],
+            key="gemini_product"
+        )
     
     # Search button
     if st.button("🚀 Search with AI", type="primary", disabled=not question):
