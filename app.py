@@ -5858,6 +5858,9 @@ def main():
     elif page == "📐 Sizing Calculator":
         render_sizing_calculator()
         
+    elif page == "📋 Detailed MPP Plan":
+    render_detailed_project_plan_tab()
+        
     elif page == "📚 Resources":
         # Resources page with multiple tabs
         st.title("📚 SAP Resources & Tools")
