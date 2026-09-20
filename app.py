@@ -5859,7 +5859,7 @@ def main():
         render_sizing_calculator()
         
     elif page == "📋 Detailed MPP Plan":
-    render_detailed_project_plan_tab()
+        render_detailed_project_plan_tab()
         
     elif page == "📚 Resources":
         # Resources page with multiple tabs
