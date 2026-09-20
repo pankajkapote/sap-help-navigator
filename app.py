@@ -22,6 +22,2076 @@ st.set_page_config(
 )
 
 # ============================================================
+# DETAILED MPP PROJECT PLAN + RACI GENERATOR
+# ============================================================
+
+import csv
+import io
+from datetime import date, timedelta
+from typing import Dict, List, Optional
+
+import pandas as pd
+import streamlit as st
+
+
+# ============================================================
+# DATE / SCHEDULING HELPERS
+# ============================================================
+
+def mpp_add_business_days(start_date: date, business_days: int) -> date:
+    """
+    Add business days to a date.
+    Weekends are skipped. Public holidays are not considered.
+    """
+    if business_days <= 0:
+        return start_date
+
+    current_date = start_date
+    remaining_days = business_days
+
+    while remaining_days > 0:
+        current_date += timedelta(days=1)
+        if current_date.weekday() < 5:
+            remaining_days -= 1
+
+    return current_date
+
+
+def mpp_duration_to_text(duration_days: int) -> str:
+    """Return Microsoft Project-friendly duration text."""
+    if duration_days <= 0:
+        return "0d"
+    return f"{duration_days}d"
+
+
+def mpp_safe_filename(value: str) -> str:
+    """Create a safe filename component."""
+    cleaned = value.replace("/", "_").replace("\\", "_")
+    cleaned = cleaned.replace(" ", "_").replace("(", "")
+    cleaned = cleaned.replace(")", "").replace("-", "_")
+    return cleaned.lower()
+
+
+# ============================================================
+# PROJECT TASK CREATION
+# ============================================================
+
+def mpp_create_task(
+    wbs: str,
+    phase: str,
+    task_name: str,
+    duration_days: int,
+    primary_owner: str,
+    support_teams: str,
+    raci: str,
+    tool_transaction: str,
+    deliverable: str,
+    notes: str = "",
+    predecessors: str = "",
+    outline_level: int = 2,
+    activity_type: str = ""
+) -> Dict:
+    """Create one detailed project-plan task record."""
+    return {
+        "WBS": wbs,
+        "Phase": phase,
+        "Task Name": task_name,
+        "Outline Level": outline_level,
+        "Duration": mpp_duration_to_text(duration_days),
+        "Duration Days": duration_days,
+        "Predecessors": predecessors,
+        "Primary Owner": primary_owner,
+        "Support Teams": support_teams,
+        "RACI": raci,
+        "Tool / Transaction": tool_transaction,
+        "Deliverable": deliverable,
+        "Notes": notes,
+        "Activity Type": activity_type,
+        "Start": "",
+        "Finish": ""
+    }
+
+
+def mpp_add_phase_summary(
+    tasks: List[Dict],
+    phase_wbs: str,
+    phase_name: str,
+    activity_type: str
+) -> None:
+    """Add a summary row. It is useful when importing into MS Project."""
+    tasks.append({
+        "WBS": phase_wbs,
+        "Phase": phase_name,
+        "Task Name": phase_name,
+        "Outline Level": 1,
+        "Duration": "",
+        "Duration Days": 0,
+        "Predecessors": "",
+        "Primary Owner": "",
+        "Support Teams": "",
+        "RACI": "",
+        "Tool / Transaction": "",
+        "Deliverable": "",
+        "Notes": "Summary task. Configure as summary task after importing into Microsoft Project.",
+        "Activity Type": activity_type,
+        "Start": "",
+        "Finish": ""
+    })
+
+
+def mpp_apply_schedule(
+    tasks: List[Dict],
+    project_start: date
+) -> List[Dict]:
+    """
+    Apply a sequential baseline schedule to detailed tasks.
+
+    Summary rows are assigned no dates.
+    Tasks with zero duration are treated as milestones.
+    """
+    current_date = project_start
+    last_task_wbs = ""
+
+    for task in tasks:
+        is_summary = task.get("Outline Level") == 1
+
+        if is_summary:
+            task["Start"] = ""
+            task["Finish"] = ""
+            continue
+
+        duration_days = int(task.get("Duration Days", 0))
+
+        if not task.get("Predecessors") and last_task_wbs:
+            task["Predecessors"] = last_task_wbs
+
+        task["Start"] = current_date.isoformat()
+
+        if duration_days <= 0:
+            task["Finish"] = current_date.isoformat()
+        else:
+            finish_date = mpp_add_business_days(
+                current_date,
+                max(duration_days - 1, 0)
+            )
+            task["Finish"] = finish_date.isoformat()
+            current_date = mpp_add_business_days(finish_date, 1)
+
+        last_task_wbs = task["WBS"]
+
+    return tasks
+
+
+# ============================================================
+# ACTIVITY-SPECIFIC TASKS
+# ============================================================
+
+def mpp_get_activity_specific_tasks(
+    activity_type: str,
+    deployment_model: str,
+    include_dry_runs: bool
+) -> List[Dict]:
+    """
+    Return tasks unique to the chosen upgrade or migration approach.
+    """
+    tasks = []
+
+    if activity_type == "Release Upgrade":
+        tasks.append(
+            mpp_create_task(
+                "3.10",
+                "Build & Remediation",
+                "Confirm direct release-upgrade path and target-stack compatibility",
+                2,
+                "BASIS",
+                "Infra, ABAP",
+                "BASIS=R; Customer=A; Infra=C; ABAP=C",
+                "SAP PAM, Maintenance Planner",
+                "Approved direct upgrade path",
+                "Validate source, target, add-on and kernel compatibility.",
+                activity_type=activity_type
+            )
+        )
+
+    elif activity_type == "System Conversion (ECC to S/4HANA)":
+        tasks.extend([
+            mpp_create_task(
+                "3.10",
+                "Build & Remediation",
+                "Complete S/4HANA Simplification Item assessment",
+                5,
+                "Functional",
+                "ABAP, BASIS, Testing",
+                "Functional=R; Customer=A; ABAP=C; BASIS=C; Testing=C",
+                "/SDF/RC_START_CHECK, Simplification Item Catalog",
+                "Simplification-item remediation tracker",
+                "Review mandatory, relevant and customer-code-related simplification items.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.11",
+                "Build & Remediation",
+                "Complete S/4HANA custom-code remediation backlog",
+                15,
+                "ABAP",
+                "Functional, BASIS, Testing",
+                "ABAP=R; Customer=A; Functional=C; BASIS=C; Testing=C",
+                "ATC, Custom Code Migration App",
+                "Resolved or accepted custom-code findings",
+                "Prioritize custom code used by critical business processes.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.12",
+                "Build & Remediation",
+                "Prepare mandatory business-partner conversion activities",
+                8,
+                "Functional",
+                "ABAP, BASIS, Data Team",
+                "Functional=R; Customer=A; ABAP=C; BASIS=C; Data Team=C",
+                "CVI Cockpit, Business Partner approach",
+                "Business Partner readiness evidence",
+                "Include customer/vendor synchronization and data-quality checks.",
+                activity_type=activity_type
+            )
+        ])
+
+    elif activity_type == "DMO (AnyDB to HANA + Upgrade)":
+        tasks.extend([
+            mpp_create_task(
+                "3.10",
+                "Build & Remediation",
+                "Validate source database export, HANA target sizing and DMO prerequisites",
+                5,
+                "BASIS",
+                "Infra, DBA",
+                "BASIS=R; Customer=A; Infra=C; DBA=C",
+                "SUM DMO, SAP PAM, SAP Quick Sizer",
+                "DMO readiness approval",
+                "Validate source DB support, target HANA revision, storage and memory.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.11",
+                "Build & Remediation",
+                "Prepare HANA target database and connectivity for DMO",
+                5,
+                "Infra",
+                "BASIS, DBA, Security",
+                "Infra=R; Customer=A; BASIS=C; DBA=C; Security=C",
+                "SAP HANA Cockpit, HDBSQL",
+                "HANA target ready for DMO",
+                "Includes backup strategy, network validation and monitoring setup.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.5",
+                "Sandbox / Dry Run",
+                "Execute sandbox DMO database migration",
+                3,
+                "BASIS",
+                "DBA, Infra",
+                "BASIS=R; Customer=A; DBA=C; Infra=C",
+                "SUM with DMO",
+                "Sandbox DMO execution report",
+                "Capture export/import duration, data migration throughput and issues.",
+                activity_type=activity_type
+            )
+        ])
+
+    elif activity_type == "DoDMO (Downtime Optimized DMO)":
+        tasks.extend([
+            mpp_create_task(
+                "3.10",
+                "Build & Remediation",
+                "Confirm downtime-optimized DMO eligibility and prerequisites",
+                5,
+                "BASIS",
+                "Infra, DBA, SAP Support",
+                "BASIS=R; Customer=A; Infra=C; DBA=C; SAP Support=C",
+                "SUM with DMO, SAP PAM",
+                "DoDMO feasibility decision",
+                "Validate supported source/target combination, sizing and operational constraints.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.11",
+                "Build & Remediation",
+                "Prepare uptime migration, delta synchronization and monitoring plan",
+                5,
+                "BASIS",
+                "DBA, Infra",
+                "BASIS=R; Customer=A; DBA=C; Infra=C",
+                "SUM DMO monitoring",
+                "Delta synchronization runbook",
+                "Document throughput monitoring, escalation and cutoff thresholds.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.10",
+                "Production Cutover",
+                "Perform final DMO delta synchronization and downtime switch",
+                1,
+                "BASIS",
+                "DBA, Infra",
+                "BASIS=R; Customer=A; DBA=C; Infra=C",
+                "SUM with DoDMO",
+                "Final delta synchronization complete",
+                "Perform this activity in the approved production downtime window.",
+                activity_type=activity_type
+            )
+        ])
+
+    elif activity_type == "nZDM / nZDT / ZDO":
+        tasks.extend([
+            mpp_create_task(
+                "3.10",
+                "Build & Remediation",
+                "Conduct near-zero-downtime feasibility and architecture assessment",
+                10,
+                "BASIS",
+                "Infra, DBA, SAP Support, Customer PMO",
+                "BASIS=R; Customer=A; Infra=C; DBA=C; SAP Support=C",
+                "SAP PAM, SUM, SAP engagement documentation",
+                "Near-zero-downtime feasibility report",
+                "Validate product eligibility, infrastructure capacity, replication design and support model.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.11",
+                "Build & Remediation",
+                "Design shadow-system, synchronization and fallback architecture",
+                10,
+                "BASIS",
+                "Infra, DBA, Security",
+                "BASIS=R; Customer=A; Infra=C; DBA=C; Security=C",
+                "SUM, replication tooling",
+                "Approved nZDM/nZDT/ZDO technical design",
+                "Include storage, networking, monitoring and fallback decision points.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.5",
+                "Sandbox / Dry Run",
+                "Execute near-zero-downtime technical rehearsal and measure final switch duration",
+                5,
+                "BASIS",
+                "Infra, DBA, Testing",
+                "BASIS=R; Customer=A; Infra=C; DBA=C; Testing=C",
+                "SUM, shadow system, synchronization monitoring",
+                "Measured downtime and rehearsal report",
+                "Confirm the business downtime commitment can be achieved.",
+                activity_type=activity_type
+            )
+        ])
+
+    elif activity_type == "Selective Data Transition":
+        tasks.extend([
+            mpp_create_task(
+                "2.10",
+                "Assessment & Planning",
+                "Define selective-data-transition scope, data-retention and historical-data strategy",
+                15,
+                "Customer PMO",
+                "Functional, Data Team, BASIS, Legal",
+                "Customer PMO=A/R; Functional=C; Data Team=C; BASIS=C; Legal=C",
+                "Data migration strategy workshops",
+                "Approved selective data scope",
+                "Define company codes, plants, open items, master data and historical-data handling.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.10",
+                "Build & Remediation",
+                "Design data mapping, transformation, reconciliation and archival rules",
+                20,
+                "Data Team",
+                "Functional, ABAP, Testing",
+                "Data Team=R; Customer=A; Functional=C; ABAP=C; Testing=C",
+                "SAP Migration Cockpit, ETL tools",
+                "Signed-off data migration design",
+                "Include reconciliation controls and business acceptance criteria.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.11",
+                "Build & Remediation",
+                "Provision new target S/4HANA landscape",
+                10,
+                "Infra",
+                "BASIS, Security",
+                "Infra=R; Customer=A; BASIS=C; Security=C",
+                "SWPM, SAP HANA installation tools",
+                "Target landscape ready",
+                "A selective data transition normally requires a dedicated target landscape.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.5",
+                "Sandbox / Dry Run",
+                "Execute trial selective data extraction, load and reconciliation",
+                10,
+                "Data Team",
+                "Functional, BASIS, Testing",
+                "Data Team=R; Customer=A; Functional=C; BASIS=C; Testing=C",
+                "SAP Migration Cockpit, ETL tools",
+                "Trial migration reconciliation report",
+                "Validate record counts, balances, open items and master data.",
+                activity_type=activity_type
+            )
+        ])
+
+    elif activity_type == "RISE Migration":
+        tasks.extend([
+            mpp_create_task(
+                "2.10",
+                "Assessment & Planning",
+                "Validate RISE contract scope, target edition and SAP service boundaries",
+                5,
+                "Customer PMO",
+                "SAP Account Team, BASIS, Infra",
+                "Customer PMO=A/R; SAP Account Team=C; BASIS=C; Infra=C",
+                "RISE service documentation",
+                "Confirmed RISE scope and responsibilities",
+                "Confirm target release, service level, downtime coordination and operational responsibilities.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.10",
+                "Build & Remediation",
+                "Prepare cloud connectivity, Cloud Connector, VPN and firewall requirements",
+                10,
+                "Infra",
+                "BASIS, Security, SAP Account Team",
+                "Infra=R; Customer=A; BASIS=C; Security=C; SAP Account Team=C",
+                "SAP Cloud Connector, VPN, firewall configuration",
+                "Validated RISE connectivity",
+                "Validate RFC, interface, SSO and outbound/inbound connectivity.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "3.11",
+                "Build & Remediation",
+                "Configure SAP Cloud ALM project, monitoring and operations setup",
+                5,
+                "BASIS",
+                "Customer PMO, Infra",
+                "BASIS=R; Customer=A; Customer PMO=C; Infra=C",
+                "SAP Cloud ALM",
+                "Cloud ALM project and monitoring configuration",
+                "Use Cloud ALM for implementation tracking, monitoring and handover.",
+                activity_type=activity_type
+            )
+        ])
+
+    if include_dry_runs:
+        tasks.append(
+            mpp_create_task(
+                "4.10",
+                "Sandbox / Dry Run",
+                "Document dry-run findings, update durations, risks and cutover plan",
+                3,
+                "Customer PMO",
+                "BASIS, ABAP, Functional, Testing, Infra",
+                "Customer PMO=A/R; BASIS=C; ABAP=C; Functional=C; Testing=C; Infra=C",
+                "Project RAID log, cutover plan",
+                "Updated production cutover plan",
+                "Use actual dry-run timings to revise the production schedule.",
+                activity_type=activity_type
+            )
+        )
+
+    if deployment_model == "Hybrid":
+        tasks.append(
+            mpp_create_task(
+                "3.20",
+                "Build & Remediation",
+                "Validate hybrid connectivity, interface routing and data synchronization",
+                5,
+                "Infra",
+                "BASIS, Security, Functional",
+                "Infra=R; Customer=A; BASIS=C; Security=C; Functional=C",
+                "VPN, SAP Cloud Connector, SM59, SOAMANAGER",
+                "Hybrid connectivity test evidence",
+                "Validate latency, routing, certificates and integration error handling.",
+                activity_type=activity_type
+            )
+        )
+
+    return tasks
+
+
+# ============================================================
+# DETAILED MPP PLAN GENERATOR
+# ============================================================
+
+def generate_detailed_mpp_plan(
+    activity_type: str,
+    source_release: str,
+    target_release: str,
+    deployment_model: str,
+    project_start_date: date,
+    include_dry_runs: bool = True,
+    include_cutover: bool = True,
+    include_hypercare: bool = True
+) -> List[Dict]:
+    """
+    Generate a detailed project plan suitable for CSV import into
+    Microsoft Project, Excel, Smartsheet, or similar planning tools.
+    """
+    tasks = []
+
+    # --------------------------------------------------------
+    # Phase 1: Project Initiation and Governance
+    # --------------------------------------------------------
+    mpp_add_phase_summary(
+        tasks,
+        "1",
+        "Phase 1 - Project Initiation & Governance",
+        activity_type
+    )
+
+    tasks.extend([
+        mpp_create_task(
+            "1.1",
+            "Project Initiation & Governance",
+            "Conduct project kickoff and establish governance structure",
+            2,
+            "Customer PMO",
+            "BASIS, Infra, ABAP, Functional, Testing, Security",
+            "Customer PMO=A/R; All Teams=C",
+            "Kickoff workshop",
+            "Approved project charter and governance model",
+            "Define workstreams, reporting cadence, decision forums and escalation path.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "1.2",
+            "Project Initiation & Governance",
+            "Define project scope, in-scope systems, interfaces and target architecture",
+            5,
+            "Customer PMO",
+            "BASIS, Infra, Functional, Security",
+            "Customer PMO=A/R; BASIS=C; Infra=C; Functional=C; Security=C",
+            "Architecture workshops",
+            "Scope and architecture document",
+            f"Source: {source_release}; Target: {target_release}; Deployment: {deployment_model}.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "1.3",
+            "Project Initiation & Governance",
+            "Define RACI, escalation matrix and change-control process",
+            3,
+            "Customer PMO",
+            "All Teams",
+            "Customer PMO=A/R; All Teams=C",
+            "RACI workshop",
+            "Approved RACI and escalation matrix",
+            "Use the generated RACI document as the baseline.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "1.4",
+            "Project Initiation & Governance",
+            "Define production downtime window, rollback criteria and go/no-go authority",
+            3,
+            "Customer PMO",
+            "BASIS, Infra, Functional, Security",
+            "Customer PMO=A; BASIS=R; Infra=C; Functional=C; Security=C",
+            "Cutover planning workshop",
+            "Approved downtime and rollback strategy",
+            "Ensure business approval for production downtime.",
+            activity_type=activity_type
+        )
+    ])
+
+    # --------------------------------------------------------
+    # Phase 2: Assessment and Pre-Checks
+    # --------------------------------------------------------
+    mpp_add_phase_summary(
+        tasks,
+        "2",
+        "Phase 2 - Assessment & Pre-Checks",
+        activity_type
+    )
+
+    tasks.extend([
+        mpp_create_task(
+            "2.1",
+            "Assessment & Pre-Checks",
+            "Complete SAP system inventory: release, support packages, add-ons and business functions",
+            3,
+            "BASIS",
+            "ABAP, Functional",
+            "BASIS=R; Customer=A; ABAP=C; Functional=C",
+            "SPAM, SAINT, System -> Status",
+            "System inventory report",
+            "Capture current kernel, DB, OS, add-ons, business functions and interfaces.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "2.2",
+            "Assessment & Pre-Checks",
+            "Run SAP Readiness Check and resolve critical findings",
+            5,
+            "BASIS",
+            "ABAP, Functional, Infra",
+            "BASIS=R; Customer=A; ABAP=C; Functional=C; Infra=C",
+            "/SDF/RC_START_CHECK",
+            "Readiness Check report and remediation tracker",
+            "Resolve critical and high-impact technical findings before execution.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "2.3",
+            "Assessment & Pre-Checks",
+            "Validate supported upgrade path, OS, DB and add-on versions in SAP PAM",
+            3,
+            "BASIS",
+            "Infra, DBA",
+            "BASIS=R; Customer=A; Infra=C; DBA=C",
+            "SAP Product Availability Matrix",
+            "PAM compatibility evidence",
+            "Confirm product, database, operating-system, kernel and add-on compatibility.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "2.4",
+            "Assessment & Pre-Checks",
+            "Perform custom-code analysis and create remediation backlog",
+            10,
+            "ABAP",
+            "Functional, BASIS, Testing",
+            "ABAP=R; Customer=A; Functional=C; BASIS=C; Testing=C",
+            "ATC, Custom Code Migration App",
+            "Prioritized custom-code remediation backlog",
+            "Identify incompatible custom code and unused custom objects.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "2.5",
+            "Assessment & Pre-Checks",
+            "Validate infrastructure sizing, capacity, backup, HA and disaster-recovery readiness",
+            5,
+            "Infra",
+            "BASIS, DBA, Security",
+            "Infra=R; Customer=A; BASIS=C; DBA=C; Security=C",
+            "SAP Quick Sizer, backup tools, HA/DR procedures",
+            "Infrastructure readiness report",
+            "Validate compute, memory, storage, network, backup and recovery objectives.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "2.6",
+            "Assessment & Pre-Checks",
+            "Map integrations, RFCs, IDocs, middleware, batch jobs and external interfaces",
+            5,
+            "Functional",
+            "BASIS, Testing, Security",
+            "Functional=R; Customer=A; BASIS=C; Testing=C; Security=C",
+            "SM59, WE20, SOAMANAGER, SM37",
+            "Interface inventory and test plan",
+            "Document owners, criticality, test data and restart procedures.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "2.7",
+            "Assessment & Pre-Checks",
+            "Establish baseline performance, business volumes and technical monitoring metrics",
+            5,
+            "BASIS",
+            "Infra, Functional, Testing",
+            "BASIS=R; Customer=A; Infra=C; Functional=C; Testing=C",
+            "ST02, ST05, ST03N, SM50, DBACOCKPIT",
+            "Pre-upgrade performance baseline",
+            "Use baseline values for post-upgrade comparison.",
+            activity_type=activity_type
+        )
+    ])
+
+    # Activity-specific assessment/build tasks
+    activity_tasks = mpp_get_activity_specific_tasks(
+        activity_type,
+        deployment_model,
+        include_dry_runs
+    )
+
+    early_activity_tasks = [
+        task for task in activity_tasks
+        if task["WBS"].startswith("2.")
+    ]
+    tasks.extend(early_activity_tasks)
+
+    # --------------------------------------------------------
+    # Phase 3: Build, Remediation and Preparation
+    # --------------------------------------------------------
+    mpp_add_phase_summary(
+        tasks,
+        "3",
+        "Phase 3 - Build, Remediation & Technical Preparation",
+        activity_type
+    )
+
+    tasks.extend([
+        mpp_create_task(
+            "3.1",
+            "Build, Remediation & Technical Preparation",
+            "Generate Stack XML and download required software media",
+            3,
+            "BASIS",
+            "Infra",
+            "BASIS=R; Customer=A; Infra=C",
+            "SAP Maintenance Planner, SWDC",
+            "Validated Stack XML and staged software media",
+            "Include SUM, kernel, support packages, installation exports and database media as required.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.2",
+            "Build, Remediation & Technical Preparation",
+            "Prepare SUM host, file systems, permissions and SUM directory structure",
+            3,
+            "BASIS",
+            "Infra, Security",
+            "BASIS=R; Customer=A; Infra=C; Security=C",
+            "SUM, Linux file-system tools",
+            "SUM host readiness checklist",
+            "Validate disk capacity, mount points, user permissions and network access.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.3",
+            "Build, Remediation & Technical Preparation",
+            "Complete ABAP custom-code remediation and transport management",
+            15,
+            "ABAP",
+            "Functional, BASIS, Testing",
+            "ABAP=R; Customer=A; Functional=C; BASIS=C; Testing=C",
+            "ATC, ADT, SE80, STMS",
+            "Custom-code remediation transports",
+            "Move remediated code through DEV and QAS using controlled transports.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.4",
+            "Build, Remediation & Technical Preparation",
+            "Complete functional remediation, configuration changes and business-process impact assessment",
+            10,
+            "Functional",
+            "ABAP, Testing, BASIS",
+            "Functional=R; Customer=A; ABAP=C; Testing=C; BASIS=C",
+            "Simplification Item Catalog, IMG",
+            "Functional remediation tracker",
+            "Address process changes and configuration prerequisites.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.5",
+            "Build, Remediation & Technical Preparation",
+            "Complete authorization, role and security impact assessment",
+            5,
+            "Security",
+            "Functional, BASIS, Testing",
+            "Security=R; Customer=A; Functional=C; BASIS=C; Testing=C",
+            "SU25, SU24, PFCG, GRC",
+            "Security remediation plan",
+            "Identify role changes, Fiori authorizations, SSO and audit requirements.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.6",
+            "Build, Remediation & Technical Preparation",
+            "Prepare test strategy, regression scope, UAT plan and defect process",
+            5,
+            "Testing",
+            "Functional, ABAP, BASIS",
+            "Testing=R; Customer=A; Functional=C; ABAP=C; BASIS=C",
+            "Test management tool",
+            "Approved test strategy and test cases",
+            "Include business-critical transactions and interface tests.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.7",
+            "Build, Remediation & Technical Preparation",
+            "Prepare detailed production cutover runbook and communications plan",
+            5,
+            "Customer PMO",
+            "BASIS, Infra, ABAP, Functional, Testing, Security",
+            "Customer PMO=A/R; All Teams=C",
+            "Cutover runbook, communication templates",
+            "Approved cutover plan",
+            "Include timings, owners, dependencies, escalation contacts and rollback decision points.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.8",
+            "Build, Remediation & Technical Preparation",
+            "Perform SUM extraction and pre-check execution",
+            2,
+            "BASIS",
+            "Infra",
+            "BASIS=R; Customer=A; Infra=C",
+            "./STARTUP EXTRACTONLY",
+            "Resolved SUM pre-check results",
+            "Resolve all SUM errors before continuing to execution.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "3.9",
+            "Build, Remediation & Technical Preparation",
+            "Validate backup, restore and rollback procedures through a test restore",
+            3,
+            "Infra",
+            "BASIS, DBA",
+            "Infra=R; Customer=A; BASIS=C; DBA=C",
+            "Backup platform, database backup tools",
+            "Successful restore-test evidence",
+            "Define operational decision criteria for rollback.",
+            activity_type=activity_type
+        )
+    ])
+
+    build_activity_tasks = [
+        task for task in activity_tasks
+        if task["WBS"].startswith("3.")
+    ]
+    tasks.extend(build_activity_tasks)
+
+    # --------------------------------------------------------
+    # Phase 4: Sandbox / Dry Run
+    # --------------------------------------------------------
+    if include_dry_runs:
+        mpp_add_phase_summary(
+            tasks,
+            "4",
+            "Phase 4 - Sandbox Conversion / Upgrade and Dry Run",
+            activity_type
+        )
+
+        tasks.extend([
+            mpp_create_task(
+                "4.1",
+                "Sandbox / Dry Run",
+                "Provision or refresh sandbox system from representative source copy",
+                5,
+                "Infra",
+                "BASIS, DBA",
+                "Infra=R; Customer=A; BASIS=C; DBA=C",
+                "System copy tools, backup/restore tools",
+                "Sandbox ready for technical rehearsal",
+                "Use representative data volume when possible.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.2",
+                "Sandbox / Dry Run",
+                "Execute sandbox technical readiness checks and SUM pre-check",
+                2,
+                "BASIS",
+                "Infra, ABAP",
+                "BASIS=R; Customer=A; Infra=C; ABAP=C",
+                "SUM, SAP Readiness Check",
+                "Sandbox readiness approval",
+                "Confirm media, stack XML, storage and prerequisites.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.3",
+                "Sandbox / Dry Run",
+                "Execute selected upgrade, conversion or migration approach in sandbox",
+                5,
+                "BASIS",
+                "Infra, DBA, ABAP",
+                "BASIS=R; Customer=A; Infra=C; DBA=C; ABAP=C",
+                "SUM, DMO where applicable",
+                "Sandbox execution log",
+                f"Selected activity: {activity_type}.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.4",
+                "Sandbox / Dry Run",
+                "Perform SPDD Data Dictionary modification adjustments",
+                3,
+                "ABAP",
+                "BASIS, Functional",
+                "ABAP=R; Customer=A; BASIS=C; Functional=C",
+                "SPDD",
+                "Completed SPDD adjustment transports",
+                "Document decisions and transport adjustments.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.6",
+                "Sandbox / Dry Run",
+                "Perform SPAU repository modification adjustments",
+                5,
+                "ABAP",
+                "BASIS, Functional",
+                "ABAP=R; Customer=A; BASIS=C; Functional=C",
+                "SPAU",
+                "Completed SPAU adjustment transports",
+                "Validate changed SAP objects and custom modifications.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.7",
+                "Sandbox / Dry Run",
+                "Validate sandbox startup, technical smoke tests and interface connectivity",
+                3,
+                "BASIS",
+                "Testing, Functional, Infra",
+                "BASIS=R; Customer=A; Testing=C; Functional=C; Infra=C",
+                "SM50, SM21, SM37, SM59, ST22",
+                "Sandbox technical validation report",
+                "Confirm system availability, background jobs, interfaces and dumps.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.8",
+                "Sandbox / Dry Run",
+                "Execute functional smoke tests and regression test sample",
+                5,
+                "Testing",
+                "Functional, ABAP",
+                "Testing=R; Customer=A; Functional=C; ABAP=C",
+                "Test management tool",
+                "Sandbox test results",
+                "Validate key business processes and critical integrations.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "4.9",
+                "Sandbox / Dry Run",
+                "Capture actual timings, issues, lessons learned and production improvements",
+                3,
+                "Customer PMO",
+                "All Teams",
+                "Customer PMO=A/R; All Teams=C",
+                "Project RAID log",
+                "Updated project plan and cutover plan",
+                "Use actual duration to update production cutover estimates.",
+                activity_type=activity_type
+            )
+        ])
+
+        sandbox_activity_tasks = [
+            task for task in activity_tasks
+            if task["WBS"].startswith("4.")
+        ]
+        tasks.extend(sandbox_activity_tasks)
+
+    # --------------------------------------------------------
+    # Phase 5: DEV / QAS and Testing
+    # --------------------------------------------------------
+    mpp_add_phase_summary(
+        tasks,
+        "5",
+        "Phase 5 - Development, Quality, Testing & Dress Rehearsal",
+        activity_type
+    )
+
+    tasks.extend([
+        mpp_create_task(
+            "5.1",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Upgrade or convert DEV system",
+            5,
+            "BASIS",
+            "Infra, ABAP",
+            "BASIS=R; Customer=A; Infra=C; ABAP=C",
+            "SUM, DMO where applicable",
+            "Upgraded DEV system",
+            "Complete technical execution and post-processing in DEV.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "5.2",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Complete DEV SPDD/SPAU, remediation transports and unit testing",
+            10,
+            "ABAP",
+            "Functional, BASIS, Testing",
+            "ABAP=R; Customer=A; Functional=C; BASIS=C; Testing=C",
+            "SPDD, SPAU, ATC, STMS",
+            "DEV remediation complete",
+            "Control retrofit and transport sequencing.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "5.3",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Upgrade or convert QAS system",
+            5,
+            "BASIS",
+            "Infra, ABAP",
+            "BASIS=R; Customer=A; Infra=C; ABAP=C",
+            "SUM, DMO where applicable",
+            "Upgraded QAS system",
+            "Use lessons from sandbox and DEV execution.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "5.4",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Execute system integration testing and interface validation",
+            10,
+            "Testing",
+            "Functional, BASIS, ABAP, Security",
+            "Testing=R; Customer=A; Functional=C; BASIS=C; ABAP=C; Security=C",
+            "Test management tool, SM59, WE20, SOAMANAGER",
+            "SIT completion report",
+            "Test all critical end-to-end business processes and interfaces.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "5.5",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Execute regression testing, performance testing and security validation",
+            10,
+            "Testing",
+            "Functional, BASIS, Security, Infra",
+            "Testing=R; Customer=A; Functional=C; BASIS=C; Security=C; Infra=C",
+            "ST03N, ST05, ST02, SU25, PFCG",
+            "Regression, performance and security test evidence",
+            "Compare results with pre-upgrade baseline.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "5.6",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Execute UAT and obtain business acceptance",
+            10,
+            "Functional",
+            "Testing, Customer PMO",
+            "Functional=R; Customer=A; Testing=C; Customer PMO=C",
+            "UAT scripts and defect tracker",
+            "Formal UAT sign-off",
+            "All critical and high defects must be resolved or formally accepted.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "5.7",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Conduct production dress rehearsal and finalize cutover duration",
+            5,
+            "BASIS",
+            "Customer PMO, Infra, ABAP, Functional, Testing, Security",
+            "BASIS=R; Customer=A; Customer PMO=C; Infra=C; ABAP=C; Functional=C; Testing=C; Security=C",
+            "SUM, cutover runbook",
+            "Approved final cutover plan",
+            "Validate task timings, dependencies, communications and contingency actions.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "5.8",
+            "Development, Quality, Testing & Dress Rehearsal",
+            "Conduct final go-live readiness review and obtain go/no-go approval",
+            2,
+            "Customer PMO",
+            "All Teams",
+            "Customer PMO=A/R; All Teams=C",
+            "Go-live readiness checklist",
+            "Go-live approval decision",
+            "Confirm risks, open defects, staffing, backups, business approval and support coverage.",
+            activity_type=activity_type
+        )
+    ])
+
+    # --------------------------------------------------------
+    # Phase 6: Production Cutover
+    # --------------------------------------------------------
+    if include_cutover:
+        mpp_add_phase_summary(
+            tasks,
+            "6",
+            "Phase 6 - Production Cutover and SUM Execution",
+            activity_type
+        )
+
+        tasks.extend([
+            mpp_create_task(
+                "6.1",
+                "Production Cutover and SUM Execution",
+                "Confirm formal go/no-go approval and activate cutover command center",
+                0,
+                "Customer PMO",
+                "All Teams",
+                "Customer PMO=A/R; All Teams=C",
+                "Go-live governance process",
+                "Go-live approval recorded",
+                "Milestone. Confirm all stakeholders are available.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.2",
+                "Production Cutover and SUM Execution",
+                "Communicate maintenance-window start and business-system outage",
+                0,
+                "Customer PMO",
+                "Functional, BASIS",
+                "Customer PMO=A/R; Functional=C; BASIS=C",
+                "Communication plan",
+                "Outage notification distributed",
+                "Milestone. Notify business, service desk, interfaces owners and vendors.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.3",
+                "Production Cutover and SUM Execution",
+                "Freeze transports, business changes, batch schedules and nonessential interfaces",
+                1,
+                "BASIS",
+                "Functional, ABAP, Security",
+                "BASIS=R; Customer=A; Functional=C; ABAP=C; Security=C",
+                "STMS, SM37, SM59",
+                "Change freeze confirmed",
+                "Record final transport status and interface shutdown state.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.4",
+                "Production Cutover and SUM Execution",
+                "Complete final database backup and verify rollback restore point",
+                1,
+                "Infra",
+                "BASIS, DBA",
+                "Infra=R; Customer=A; BASIS=C; DBA=C",
+                "Backup platform, DB backup tools",
+                "Verified production restore point",
+                "Do not proceed until backup success is confirmed.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.5",
+                "Production Cutover and SUM Execution",
+                "Lock users, stop application servers and start approved downtime window",
+                1,
+                "BASIS",
+                "Security, Infra",
+                "BASIS=R; Customer=A; Security=C; Infra=C",
+                "SM04, SU01, SAP MMC",
+                "Production downtime started",
+                "Retain access only for authorized cutover team.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.6",
+                "Production Cutover and SUM Execution",
+                "Start SUM and validate initial execution status",
+                1,
+                "BASIS",
+                "Infra",
+                "BASIS=R; Customer=A; Infra=C",
+                "./STARTUP, SUM Web UI",
+                "SUM execution started",
+                "Monitor SUM web UI and application logs.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.7",
+                "Production Cutover and SUM Execution",
+                "Monitor SUM shadow import phase MAIN_SHDIMP",
+                1,
+                "BASIS",
+                "Infra, DBA",
+                "BASIS=R; Customer=A; Infra=C; DBA=C",
+                "SUM Web UI, SUM logs",
+                "MAIN_SHDIMP completed",
+                "Validate database connectivity, free space and system logs.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.8",
+                "Production Cutover and SUM Execution",
+                "Monitor SUM new-baseline and upgrade phases MAIN_NEWBAS and MAIN_UPG",
+                1,
+                "BASIS",
+                "Infra, DBA",
+                "BASIS=R; Customer=A; Infra=C; DBA=C",
+                "SUM Web UI, SUM logs",
+                "MAIN_NEWBAS and MAIN_UPG completed",
+                "Track phase timings and resolve prompts through approved procedures.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.9",
+                "Production Cutover and SUM Execution",
+                "Execute and validate SPDD / SPAU adjustments",
+                1,
+                "ABAP",
+                "BASIS, Functional",
+                "ABAP=R; Customer=A; BASIS=C; Functional=C",
+                "SPDD, SPAU",
+                "Production modification adjustments completed",
+                "Use adjustments validated during sandbox and QAS cycles.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.11",
+                "Production Cutover and SUM Execution",
+                "Monitor SUM post-processing and cleanup phases MAIN_POST and CLEANUP",
+                1,
+                "BASIS",
+                "Infra",
+                "BASIS=R; Customer=A; Infra=C",
+                "SUM Web UI, SUM logs",
+                "SUM technical completion",
+                "Confirm SUM reaches successful completion before technical handover.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.12",
+                "Production Cutover and SUM Execution",
+                "Verify SAP system startup, work processes, database connectivity and system logs",
+                1,
+                "BASIS",
+                "Infra, DBA",
+                "BASIS=R; Customer=A; Infra=C; DBA=C",
+                "SM50, SM21, ST22, DBACOCKPIT",
+                "Technical startup validation report",
+                "Validate no critical dumps, failed work processes or DB connectivity errors.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.13",
+                "Production Cutover and SUM Execution",
+                "Restart interfaces, background jobs, transport routes and integrations",
+                1,
+                "BASIS",
+                "Functional, Infra, Security",
+                "BASIS=R; Customer=A; Functional=C; Infra=C; Security=C",
+                "STMS, SM37, SM59, WE20, SOAMANAGER",
+                "Interfaces and jobs restarted",
+                "Execute restart sequence defined in the cutover runbook.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.14",
+                "Production Cutover and SUM Execution",
+                "Execute production smoke tests and confirm business readiness",
+                1,
+                "Functional",
+                "Testing, BASIS, Security",
+                "Functional=R; Customer=A; Testing=C; BASIS=C; Security=C",
+                "Business smoke-test scripts",
+                "Production smoke-test sign-off",
+                "Confirm critical business transactions, interfaces and authorizations.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "6.15",
+                "Production Cutover and SUM Execution",
+                "Obtain formal business go-live approval",
+                0,
+                "Customer PMO",
+                "Functional, Testing, BASIS",
+                "Customer PMO=A/R; Functional=C; Testing=C; BASIS=C",
+                "Go-live approval process",
+                "Production go-live approval",
+                "Milestone. Approval is based on technical and business smoke-test results.",
+                activity_type=activity_type
+            )
+        ])
+
+        cutover_activity_tasks = [
+            task for task in activity_tasks
+            if task["WBS"].startswith("6.")
+        ]
+        tasks.extend(cutover_activity_tasks)
+
+    # --------------------------------------------------------
+    # Phase 7: Post-Upgrade Validation
+    # --------------------------------------------------------
+    mpp_add_phase_summary(
+        tasks,
+        "7",
+        "Phase 7 - Post-Upgrade Validation",
+        activity_type
+    )
+
+    tasks.extend([
+        mpp_create_task(
+            "7.1",
+            "Post-Upgrade Validation",
+            "Apply approved post-upgrade SAP kernel patches and corrections",
+            2,
+            "BASIS",
+            "Infra, ABAP",
+            "BASIS=R; Customer=A; Infra=C; ABAP=C",
+            "Kernel tools, SPAM, SNOTE",
+            "Updated kernel and applied corrections",
+            "Apply only tested and approved patches in accordance with the project plan.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "7.2",
+            "Post-Upgrade Validation",
+            "Run RUTPOADAPT and complete required post-upgrade adaptation activities",
+            1,
+            "BASIS",
+            "ABAP, Functional",
+            "BASIS=R; Customer=A; ABAP=C; Functional=C",
+            "RUTPOADAPT",
+            "RUTPOADAPT completion evidence",
+            "Review output and resolve errors before handing over to business testing.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "7.3",
+            "Post-Upgrade Validation",
+            "Validate technical health, profiles, parameters, dumps and database performance",
+            3,
+            "BASIS",
+            "Infra, DBA",
+            "BASIS=R; Customer=A; Infra=C; DBA=C",
+            "RZ10, ST02, ST05, SM50, SM66, ST22, DBACOCKPIT",
+            "Technical health-check report",
+            "Compare system behavior against pre-upgrade baseline.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "7.4",
+            "Post-Upgrade Validation",
+            "Validate authorizations, roles and security configuration",
+            3,
+            "Security",
+            "Functional, BASIS, Testing",
+            "Security=R; Customer=A; Functional=C; BASIS=C; Testing=C",
+            "SU25, SU24, PFCG, GRC",
+            "Security validation evidence",
+            "Validate emergency access, business roles, SSO and audit logging.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "7.5",
+            "Post-Upgrade Validation",
+            "Execute integration testing and reconcile interface queues",
+            5,
+            "Testing",
+            "Functional, BASIS, ABAP",
+            "Testing=R; Customer=A; Functional=C; BASIS=C; ABAP=C",
+            "SM59, WE20, SMQ1, SMQ2, SOAMANAGER",
+            "Integration validation report",
+            "Validate inbound/outbound interfaces and resolve stuck queues.",
+            activity_type=activity_type
+        ),
+        mpp_create_task(
+            "7.6",
+            "Post-Upgrade Validation",
+            "Execute final UAT, performance comparison and business acceptance",
+            5,
+            "Functional",
+            "Testing, BASIS, Customer PMO",
+            "Functional=R; Customer=A; Testing=C; BASIS=C; Customer PMO=C",
+            "UAT scripts, ST03N, performance baseline",
+            "Post-go-live business acceptance",
+            "Confirm key processes meet agreed business and performance criteria.",
+            activity_type=activity_type
+        )
+    ])
+
+    # --------------------------------------------------------
+    # Phase 8: Hypercare and Handover
+    # --------------------------------------------------------
+    if include_hypercare:
+        mpp_add_phase_summary(
+            tasks,
+            "8",
+            "Phase 8 - Hypercare, Handover & Closure",
+            activity_type
+        )
+
+        tasks.extend([
+            mpp_create_task(
+                "8.1",
+                "Hypercare, Handover & Closure",
+                "Activate hypercare support model, command center and issue triage process",
+                1,
+                "Customer PMO",
+                "BASIS, Infra, ABAP, Functional, Testing, Security",
+                "Customer PMO=A/R; All Teams=C",
+                "Hypercare support model",
+                "Active hypercare support process",
+                "Define support hours, escalation process, severity model and business communication.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "8.2",
+                "Hypercare, Handover & Closure",
+                "Perform intensive technical monitoring and performance tuning",
+                10,
+                "BASIS",
+                "Infra, DBA",
+                "BASIS=R; Customer=A; Infra=C; DBA=C",
+                "SM50, SM66, ST05, ST02, DBACOCKPIT",
+                "Hypercare technical monitoring report",
+                "Monitor work processes, database load, dumps, locks, buffers and batch jobs.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "8.3",
+                "Hypercare, Handover & Closure",
+                "Monitor business processes, interfaces, queues and critical transactions",
+                10,
+                "Functional",
+                "Testing, BASIS, ABAP",
+                "Functional=R; Customer=A; Testing=C; BASIS=C; ABAP=C",
+                "Business dashboards, SMQ1, SMQ2, SM37",
+                "Business hypercare report",
+                "Track business-impacting defects and confirm interface stability.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "8.4",
+                "Hypercare, Handover & Closure",
+                "Update operating procedures, monitoring thresholds and technical documentation",
+                5,
+                "BASIS",
+                "Infra, Security, Customer PMO",
+                "BASIS=R; Customer=A; Infra=C; Security=C; Customer PMO=C",
+                "Operations runbook, SAP Cloud ALM where applicable",
+                "Updated operational documentation",
+                "Update system landscape, parameter baseline, monitoring and backup procedures.",
+                activity_type=activity_type
+            ),
+            mpp_create_task(
+                "8.5",
+                "Hypercare, Handover & Closure",
+                "Conduct formal handover to operations and close project",
+                2,
+                "Customer PMO",
+                "BASIS, Infra, Functional, Security",
+                "Customer PMO=A/R; BASIS=C; Infra=C; Functional=C; Security=C",
+                "Project closure meeting",
+                "Operations handover and closure report",
+                "Capture lessons learned, remaining backlog and ownership.",
+                activity_type=activity_type
+            )
+        ])
+
+    # Apply baseline dates and predecessor dependencies.
+    scheduled_tasks = mpp_apply_schedule(tasks, project_start_date)
+
+    return scheduled_tasks
+
+
+# ============================================================
+# RACI GENERATOR
+# ============================================================
+
+def generate_raci_matrix(
+    activity_type: str,
+    deployment_model: str
+) -> List[Dict]:
+    """
+    Generate a generic RACI matrix.
+
+    Roles:
+    - Customer / PMO
+    - Infra
+    - BASIS
+    - ABAP
+    - Functional
+    - Testing
+    - Security
+    - DBA / Data Team
+    """
+    rows = [
+        {
+            "Activity": "Project governance, budget, scope and milestone approval",
+            "Customer / PMO": "A/R",
+            "Infra": "C",
+            "BASIS": "C",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "C",
+            "Security": "C",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "Infrastructure sizing, servers, storage, network and HA/DR readiness",
+            "Customer / PMO": "A",
+            "Infra": "R",
+            "BASIS": "C",
+            "ABAP": "I",
+            "Functional": "I",
+            "Testing": "I",
+            "Security": "C",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "SAP technical readiness, PAM validation and Maintenance Planner",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "I",
+            "Security": "I",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "SAP Readiness Check and technical pre-check remediation",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "I",
+            "Security": "I",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "Custom-code analysis, ATC checks and remediation",
+            "Customer / PMO": "A",
+            "Infra": "I",
+            "BASIS": "C",
+            "ABAP": "R",
+            "Functional": "C",
+            "Testing": "C",
+            "Security": "I",
+            "DBA / Data Team": "I"
+        },
+        {
+            "Activity": "Functional simplification assessment and process remediation",
+            "Customer / PMO": "A",
+            "Infra": "I",
+            "BASIS": "C",
+            "ABAP": "C",
+            "Functional": "R",
+            "Testing": "C",
+            "Security": "I",
+            "DBA / Data Team": "I"
+        },
+        {
+            "Activity": "Security, authorization, roles, GRC and SSO remediation",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "C",
+            "ABAP": "I",
+            "Functional": "C",
+            "Testing": "C",
+            "Security": "R",
+            "DBA / Data Team": "I"
+        },
+        {
+            "Activity": "SUM media staging, Stack XML, SUM installation and technical preparation",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "I",
+            "Functional": "I",
+            "Testing": "I",
+            "Security": "I",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "Sandbox, DEV and QAS upgrade/conversion execution",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "C",
+            "Security": "I",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "SPDD Data Dictionary modification adjustments",
+            "Customer / PMO": "A",
+            "Infra": "I",
+            "BASIS": "C",
+            "ABAP": "R",
+            "Functional": "C",
+            "Testing": "I",
+            "Security": "I",
+            "DBA / Data Team": "I"
+        },
+        {
+            "Activity": "SPAU repository modification adjustments",
+            "Customer / PMO": "A",
+            "Infra": "I",
+            "BASIS": "C",
+            "ABAP": "R",
+            "Functional": "C",
+            "Testing": "I",
+            "Security": "I",
+            "DBA / Data Team": "I"
+        },
+        {
+            "Activity": "Integration validation, interface restart and queue reconciliation",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "C",
+            "ABAP": "C",
+            "Functional": "R",
+            "Testing": "R",
+            "Security": "C",
+            "DBA / Data Team": "I"
+        },
+        {
+            "Activity": "Regression testing, performance testing and UAT",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "C",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "R",
+            "Security": "C",
+            "DBA / Data Team": "I"
+        },
+        {
+            "Activity": "Production cutover go/no-go decision",
+            "Customer / PMO": "A/R",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "C",
+            "Security": "C",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "Production SUM / DMO execution and technical monitoring",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "C",
+            "Functional": "I",
+            "Testing": "I",
+            "Security": "I",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "Post-upgrade technical validation and RUTPOADAPT",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "C",
+            "Security": "C",
+            "DBA / Data Team": "C"
+        },
+        {
+            "Activity": "Hypercare technical support and operational handover",
+            "Customer / PMO": "A",
+            "Infra": "R",
+            "BASIS": "R",
+            "ABAP": "R",
+            "Functional": "R",
+            "Testing": "C",
+            "Security": "C",
+            "DBA / Data Team": "C"
+        }
+    ]
+
+    if activity_type in [
+        "DMO (AnyDB to HANA + Upgrade)",
+        "DoDMO (Downtime Optimized DMO)"
+    ]:
+        rows.append({
+            "Activity": "Database migration planning, HANA target readiness and DMO monitoring",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "R",
+            "ABAP": "I",
+            "Functional": "I",
+            "Testing": "C",
+            "Security": "I",
+            "DBA / Data Team": "R"
+        })
+
+    if activity_type == "Selective Data Transition":
+        rows.append({
+            "Activity": "Data scope, extraction, transformation, migration and reconciliation",
+            "Customer / PMO": "A",
+            "Infra": "C",
+            "BASIS": "C",
+            "ABAP": "C",
+            "Functional": "C",
+            "Testing": "C",
+            "Security": "I",
+            "DBA / Data Team": "R"
+        })
+
+    if activity_type == "RISE Migration" or deployment_model == "SAP RISE":
+        rows.append({
+            "Activity": "RISE provisioning, connectivity, SAP Cloud ALM and service coordination",
+            "Customer / PMO": "A",
+            "Infra": "R",
+            "BASIS": "R",
+            "ABAP": "I",
+            "Functional": "I",
+            "Testing": "I",
+            "Security": "C",
+            "DBA / Data Team": "C"
+        })
+
+    return rows
+
+
+# ============================================================
+# CSV EXPORT FUNCTIONS
+# ============================================================
+
+def export_mpp_csv(project_tasks: List[Dict]) -> str:
+    """
+    Export task list as a Microsoft Project-friendly CSV.
+
+    In Microsoft Project:
+    File -> Open -> Browse -> select CSV -> New Map
+    Map fields such as:
+    Name, Duration, Start, Finish, Predecessors,
+    Resource Names, Notes and Outline Level.
+    """
+    output = io.StringIO()
+
+    fieldnames = [
+        "WBS",
+        "Task Name",
+        "Outline Level",
+        "Duration",
+        "Start",
+        "Finish",
+        "Predecessors",
+        "Primary Owner",
+        "Support Teams",
+        "RACI",
+        "Tool / Transaction",
+        "Deliverable",
+        "Notes",
+        "Phase",
+        "Activity Type"
+    ]
+
+    writer = csv.DictWriter(
+        output,
+        fieldnames=fieldnames,
+        extrasaction="ignore"
+    )
+
+    writer.writeheader()
+
+    for task in project_tasks:
+        writer.writerow(task)
+
+    return output.getvalue()
+
+
+def export_raci_csv(raci_rows: List[Dict]) -> str:
+    """Export RACI matrix as CSV."""
+    output = io.StringIO()
+
+    fieldnames = [
+        "Activity",
+        "Customer / PMO",
+        "Infra",
+        "BASIS",
+        "ABAP",
+        "Functional",
+        "Testing",
+        "Security",
+        "DBA / Data Team"
+    ]
+
+    writer = csv.DictWriter(
+        output,
+        fieldnames=fieldnames,
+        extrasaction="ignore"
+    )
+
+    writer.writeheader()
+
+    for row in raci_rows:
+        writer.writerow(row)
+
+    return output.getvalue()
+
+
+def export_mpp_json(project_tasks: List[Dict]) -> str:
+    """Optional JSON export for retaining complete project-plan data."""
+    import json
+    return json.dumps(project_tasks, indent=2)
+
+
+# ============================================================
+# STREAMLIT TAB / PAGE
+# ============================================================
+
+def render_detailed_project_plan_tab():
+    """
+    Render the Detailed MPP Plan page.
+
+    Add this function to the relevant navigation route in main().
+    """
+    st.title("📋 Detailed MPP Plan & RACI Generator")
+    st.markdown(
+        "Generate a detailed, editable project plan for Microsoft Project, "
+        "Excel, Smartsheet, or similar planning tools."
+    )
+
+    st.info(
+        "This is a planning baseline. Validate durations, dependencies, "
+        "downtime estimates, SAP Notes, technical prerequisites, and "
+        "contractual responsibilities with your SAP team before execution."
+    )
+
+    st.markdown("### 1. Project Configuration")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        activity_type = st.selectbox(
+            "Activity Type:",
+            [
+                "Release Upgrade",
+                "System Conversion (ECC to S/4HANA)",
+                "DMO (AnyDB to HANA + Upgrade)",
+                "DoDMO (Downtime Optimized DMO)",
+                "nZDM / nZDT / ZDO",
+                "Selective Data Transition",
+                "RISE Migration"
+            ],
+            key="mpp_activity_type"
+        )
+
+        source_release = st.selectbox(
+            "Source Release:",
+            [
+                "ECC 6.0 EHP5",
+                "ECC 6.0 EHP6",
+                "ECC 6.0 EHP7",
+                "ECC 6.0 EHP8",
+                "S/4HANA 2020",
+                "S/4HANA 2021",
+                "S/4HANA 2022",
+                "S/4HANA 2023",
+                "BW 7.5",
+                "BW/4HANA 2.0"
+            ],
+            key="mpp_source_release"
+        )
+
+        project_start_date = st.date_input(
+            "Planned Project Start Date:",
+            value=date.today(),
+            key="mpp_project_start"
+        )
+
+    with col2:
+        target_release = st.selectbox(
+            "Target Release:",
+            [
+                "S/4HANA 2023",
+                "S/4HANA 2025",
+                "BW/4HANA 2.0"
+            ],
+            key="mpp_target_release"
+        )
+
+        deployment_model = st.selectbox(
+            "Deployment Model:",
+            [
+                "On-Premise",
+                "Private Cloud",
+                "Hybrid",
+                "SAP RISE"
+            ],
+            key="mpp_deployment_model"
+        )
+
+        st.markdown("#### Planning Scope")
+        include_dry_runs = st.checkbox(
+            "Include Sandbox and Dress-Rehearsal Cycles",
+            value=True,
+            key="mpp_include_dry_runs"
+        )
+        include_cutover = st.checkbox(
+            "Include Detailed Production Cutover Plan",
+            value=True,
+            key="mpp_include_cutover"
+        )
+        include_hypercare = st.checkbox(
+            "Include Hypercare and Operational Handover",
+            value=True,
+            key="mpp_include_hypercare"
+        )
+
+    if st.button(
+        "🚀 Generate Detailed MPP Plan",
+        type="primary",
+        use_container_width=True
+    ):
+        project_tasks = generate_detailed_mpp_plan(
+            activity_type=activity_type,
+            source_release=source_release,
+            target_release=target_release,
+            deployment_model=deployment_model,
+            project_start_date=project_start_date,
+            include_dry_runs=include_dry_runs,
+            include_cutover=include_cutover,
+            include_hypercare=include_hypercare
+        )
+
+        raci_rows = generate_raci_matrix(
+            activity_type=activity_type,
+            deployment_model=deployment_model
+        )
+
+        st.session_state["mpp_project_tasks"] = project_tasks
+        st.session_state["mpp_raci_rows"] = raci_rows
+        st.session_state["mpp_plan_metadata"] = {
+            "activity_type": activity_type,
+            "source_release": source_release,
+            "target_release": target_release,
+            "deployment_model": deployment_model,
+            "project_start_date": str(project_start_date)
+        }
+
+    project_tasks = st.session_state.get("mpp_project_tasks", [])
+    raci_rows = st.session_state.get("mpp_raci_rows", [])
+
+    if not project_tasks:
+        st.warning("Configure the project above and select Generate Detailed MPP Plan.")
+        return
+
+    st.markdown("---")
+    st.markdown("### 2. Detailed Project Plan")
+
+    detailed_task_count = len([
+        task for task in project_tasks
+        if task.get("Outline Level") == 2
+    ])
+
+    phase_count = len([
+        task for task in project_tasks
+        if task.get("Outline Level") == 1
+    ])
+
+    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    metric_col1.metric("Project Phases", phase_count)
+    metric_col2.metric("Detailed Activities", detailed_task_count)
+
+    dated_tasks = [
+        task for task in project_tasks
+        if task.get("Finish")
+    ]
+
+    if dated_tasks:
+        metric_col3.metric(
+            "Estimated Baseline Finish",
+            dated_tasks[-1]["Finish"]
+        )
+
+    display_columns = [
+        "WBS",
+        "Task Name",
+        "Duration",
+        "Start",
+        "Finish",
+        "Predecessors",
+        "Primary Owner",
+        "Support Teams",
+        "Tool / Transaction",
+        "Deliverable"
+    ]
+
+    project_df = pd.DataFrame(project_tasks)
+
+    st.dataframe(
+        project_df[display_columns],
+        use_container_width=True,
+        hide_index=True
+    )
+
+    with st.expander("📌 View Complete Task Details"):
+        st.dataframe(
+            project_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    st.markdown("---")
+    st.markdown("### 3. Download Project Plan")
+
+    mpp_csv_data = export_mpp_csv(project_tasks)
+    mpp_json_data = export_mpp_json(project_tasks)
+
+    metadata = st.session_state.get("mpp_plan_metadata", {})
+    filename_prefix = (
+        f"MPP_{mpp_safe_filename(metadata.get('activity_type', 'project'))}_"
+        f"{mpp_safe_filename(metadata.get('source_release', 'source'))}_to_"
+        f"{mpp_safe_filename(metadata.get('target_release', 'target'))}"
+    )
+
+    export_col1, export_col2 = st.columns(2)
+
+    with export_col1:
+        st.download_button(
+            label="⬇️ Download Microsoft Project CSV",
+            data=mpp_csv_data,
+            file_name=f"{filename_prefix}_plan.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    with export_col2:
+        st.download_button(
+            label="⬇️ Download Full Project Plan JSON",
+            data=mpp_json_data,
+            file_name=f"{filename_prefix}_plan.json",
+            mime="application/json",
+            use_container_width=True
+        )
+
+    with st.expander("ℹ️ Importing the CSV into Microsoft Project"):
+        st.markdown("""
+1. Download the **Microsoft Project CSV**.
+2. In Microsoft Project, select **File → Open → Browse**.
+3. Select the downloaded CSV file.
+4. Select **New Map** in the Import Wizard.
+5. Map the following fields:
+   - `Task Name` → Name
+   - `Outline Level` → Outline Level
+   - `Duration` → Duration
+   - `Start` → Start
+   - `Finish` → Finish
+   - `Predecessors` → Predecessors
+   - `Primary Owner` → Resource Names
+   - `Notes` → Notes
+6. Review the automatically generated dates and task links.
+7. Convert phase rows to summary tasks if your Project version does not automatically apply outline levels.
+        """)
+
+    st.markdown("---")
+    st.markdown("### 4. Generic RACI Matrix")
+
+    st.caption(
+        "R = Responsible · A = Accountable · C = Consulted · I = Informed"
+    )
+
+    raci_df = pd.DataFrame(raci_rows)
+
+    st.dataframe(
+        raci_df,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    raci_csv_data = export_raci_csv(raci_rows)
+
+    st.download_button(
+        label="⬇️ Download RACI Matrix CSV",
+        data=raci_csv_data,
+        file_name=f"{filename_prefix}_raci.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+# ============================================================
 # DYNAMIC RELEASE CALENDAR FETCHER
 # ============================================================
 
@@ -483,6 +2553,7 @@ def render_sidebar():
                 "🌥️ RISE Migration",
                 "⚙️ Parameter Advisor",
                 "📐 Sizing Calculator",
+                "📋 Detailed MPP Plan",
                 "📚 Resources"
             ],
             label_visibility="collapsed"
@@ -833,6 +2904,9 @@ def main():
         
     elif page == "📐 Sizing Calculator":
         render_sizing_calculator()
+        
+    elif page == "📋 Detailed MPP Plan":
+        render_detailed_project_plan_tab()
         
     elif page == "📚 Resources":
         st.title("📚 SAP Resources & Documentation")
